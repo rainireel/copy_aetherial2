@@ -9,9 +9,11 @@ import pygame
 try:
     from .puzzle import Board
     from .ui import Menu, HUD
+    from .audio import init_mixer, load_sfx, load_music, play_move, start_ambient_loop
 except ImportError:
     from puzzle import Board
     from ui import Menu, HUD
+    from audio import init_mixer, load_sfx, load_music, play_move, start_ambient_loop
 
 # ------------------------------------------------------------
 # Constants (easy to tweak later)
@@ -25,23 +27,25 @@ FPS = 60
 # initialise pygame – must happen before any font, mixer, or surface use
 # ------------------------------------------------------------
 pygame.init()
-pygame.mixer.init()  # Initialize the mixer for audio
+init_mixer()  # Initialize the mixer through audio module
 pygame.display.set_caption(WINDOW_TITLE)
 screen = pygame.display.set_mode(WINDOW_SIZE)
 clock = pygame.time.Clock()
 
 # ------------------------------------------------------------ 
-# Load audio files if they exist
+# Load audio assets using the audio module
 # ------------------------------------------------------------
 try:
-    move_sound = pygame.mixer.Sound("assets/audio/move.mp3")
-except pygame.error:
-    move_sound = None  # No sound file available
+    # Load sound effects
+    load_sfx()
+except (pygame.error, FileNotFoundError):
+    pass  # No sound file available
 
 try:
-    pygame.mixer.music.load("assets/audio/ambient.wav")
-    pygame.mixer.music.play(-1)  # Loop indefinitely
-except pygame.error:
+    # Load background music
+    load_music()
+    start_ambient_loop()
+except (pygame.error, FileNotFoundError):
     pass  # No music file available
 
 # -----------------------------------------------------------------
@@ -57,7 +61,7 @@ game_state = STATE_MENU
 
 def start_game():
     global game_state, board, hud
-    board = Board(rows=3, cols=3, tile_size=150, margin=5, move_sound=move_sound) # fresh scramble with sound
+    board = Board(rows=3, cols=3, tile_size=150, margin=5) # fresh scramble
     hud.move_count = 0
     game_state = STATE_PLAYING
 
