@@ -134,12 +134,14 @@ class LevelSelect:
         self.back_cb = back_cb
         self.font = pygame.font.SysFont(None, 36)
         self.title_font = pygame.font.SysFont(None, 72)
+        self.small_font = pygame.font.SysFont(None, 28)  # For stats text
 
-        # Button geometry – same as before
-        btn_w, btn_h = 300, 80
-        spacing = 20
+        # Button geometry – increased height to accommodate stats
+        btn_w, btn_h = 320, 90
+        spacing = 30  # Increased spacing between buttons
         total_h = len(self.levels) * (btn_h + spacing) - spacing
-        start_y = (screen_rect.height - total_h) // 2
+        # Position buttons lower to avoid title overlap
+        start_y = (screen_rect.height - total_h) // 2 + 50
         center_x = screen_rect.centerx
 
         self.buttons = []          # list of (rect, LevelInfo)
@@ -149,12 +151,18 @@ class LevelSelect:
             r.y = start_y + idx * (btn_h + spacing)
             self.buttons.append((r, lvl))
 
-        # Back button (small rectangle at top‑left)
-        self.back_rect = pygame.Rect(10, 10, 60, 30)
+        # Back button with better styling
+        back_btn_width, back_btn_height = 80, 35
+        self.back_rect = pygame.Rect(
+            15, 15, back_btn_width, back_btn_height
+        )
 
         # Re‑use the star‑drawing helper for the small thumbnails
         # Pass screen_rect instead of WINDOW_SIZE directly
         self.star_hud = StarHUD(pygame.Rect(0, 0, *screen_rect.size))
+
+        # Track mouse position for hover effects
+        self.hovered_button = None
 
     # -----------------------------------------------------------------
     # Helper: draw a tiny row of stars (0‑3) next to a level entry
@@ -162,9 +170,9 @@ class LevelSelect:
     def _draw_small_stars(self, surf: pygame.Surface, center: tuple[int, int], rating: int):
         """Draw 0‑3 gold stars of a reduced size (radius = 8)."""
         star_radius = 8
-        spacing = 3
+        spacing = 5
         for i in range(rating):
-            cx = center[0] + i * (star_radius * 2 + spacing) - ((rating - 1) * (star_radius + spacing)) // 2
+            cx = center[0] + i * (star_radius * 2 + spacing) - ((rating - 1) * (star_radius * 2 + spacing)) // 2
             points = []
             for j in range(10):
                 ang = j * 36
@@ -177,44 +185,68 @@ class LevelSelect:
     # Rendering
     # -----------------------------------------------------------------
     def draw(self, surf: pygame.Surface) -> None:
-        # Dark overlay background
+        # Aetherial garden themed background
         overlay = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 150))
+        # Deep forest green to dark blue gradient overlay
+        overlay.fill((5, 25, 15, 200))
         surf.blit(overlay, (0, 0))
 
-        # Title
-        title = self.title_font.render("Select a Garden", True, (200, 230, 200))
-        title_rect = title.get_rect(center=(surf.get_width() // 2, surf.get_height() // 3))
+        # Title positioned higher to avoid overlap
+        title = self.title_font.render("Select a Garden", True, (180, 230, 180))
+        # Position title higher on screen
+        title_rect = title.get_rect(center=(surf.get_width() // 2, 80))
+        # Add a subtle glow effect around the title
+        title_glow = self.title_font.render("Select a Garden", True, (100, 180, 100))
+        for dx, dy in [(-2, -2), (-2, 2), (2, -2), (2, 2)]:
+            surf.blit(title_glow, (title_rect.x + dx, title_rect.y + dy))
         surf.blit(title, title_rect)
 
         # Level buttons + saved stats
-        for rect, lvl in self.buttons:
-            pygame.draw.rect(surf, (70, 120, 90), rect, border_radius=8)
-            pygame.draw.rect(surf, (30, 60, 45), rect, 2, border_radius=8)
+        for idx, (rect, lvl) in enumerate(self.buttons):
+            # Determine if this button is being hovered
+            is_hovered = self.hovered_button == idx
+            
+            # Button background with nature-themed colors
+            bg_color = (85, 140, 110) if is_hovered else (70, 120, 100)
+            border_color = (40, 80, 65) if not is_hovered else (60, 110, 85)
+            
+            pygame.draw.rect(surf, bg_color, rect, border_radius=12)
+            pygame.draw.rect(surf, border_color, rect, 2, border_radius=12)
+            
+            # Add subtle inner shadow for depth
+            inner_rect = pygame.Rect(
+                rect.x + 2, rect.y + 2, rect.width - 4, rect.height - 4
+            )
+            pygame.draw.rect(surf, (60, 100, 85), inner_rect, 1, border_radius=10)
 
-            # Button label (e.g., “Garden – 3 × 3”)
-            txt = self.font.render(lvl.name, True, (255, 255, 255))
-            txt_rect = txt.get_rect(midleft=(rect.left + 15, rect.centery))
+            # Button label (e.g., “Garden – 3 × 3”) - left aligned
+            txt = self.font.render(lvl.name, True, (240, 250, 230))
+            txt_rect = txt.get_rect(midleft=(rect.left + 20, rect.centery - 10))
             surf.blit(txt, txt_rect)
 
             # ------- draw saved best moves (right side of button) -------
             size_key = self.star_key(lvl.rows)
             best_moves = self.progress["best_moves"].get(size_key)
             if best_moves is not None:
-                moves_txt = self.font.render(f"Best: {best_moves}", True, (220, 220, 180))
-                moves_rect = moves_txt.get_rect(midright=(rect.right - 15, rect.centery - 12))
+                moves_txt = self.small_font.render(f"Best: {best_moves}", True, (220, 240, 200))
+                moves_rect = moves_txt.get_rect(midright=(rect.right - 15, rect.centery - 10))
                 surf.blit(moves_txt, moves_rect)
+            else:
+                # Show "Not solved" or keep space empty
+                placeholder_txt = self.small_font.render("-", True, (150, 170, 150))
+                placeholder_rect = placeholder_txt.get_rect(midright=(rect.right - 15, rect.centery - 10))
+                surf.blit(placeholder_txt, placeholder_rect)
 
-            # ------- draw saved best stars (below the moves) -------
+            # ------- draw saved best stars (centered below the name/moves) -------
             best_stars = self.progress["best_stars"].get(size_key, 0)
-            # Center the small star row under the moves text
-            star_center = (rect.centerx, rect.centery + 20)
+            # Position stars centered below the level name and move count
+            star_center = (rect.centerx, rect.centery + 15)
             self._draw_small_stars(surf, star_center, best_stars)
 
-        # Back button
-        pygame.draw.rect(surf, (80, 40, 40), self.back_rect, border_radius=5)
-        pygame.draw.rect(surf, (30, 10, 10), self.back_rect, 2, border_radius=5)
-        back_txt = self.font.render("Back", True, (255, 255, 255))
+        # Styled back button matching the theme
+        pygame.draw.rect(surf, (45, 85, 65), self.back_rect, border_radius=8)
+        pygame.draw.rect(surf, (30, 60, 45), self.back_rect, 2, border_radius=8)
+        back_txt = self.small_font.render("Back", True, (220, 240, 220))
         back_txt_rect = back_txt.get_rect(center=self.back_rect.center)
         surf.blit(back_txt, back_txt_rect)
 
@@ -222,6 +254,15 @@ class LevelSelect:
     # Event handling
     # -----------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.MOUSEMOTION:
+            # Track which button is being hovered over
+            mouse_pos = event.pos
+            for idx, (rect, lvl) in enumerate(self.buttons):
+                if rect.collidepoint(mouse_pos):
+                    self.hovered_button = idx
+                    return
+            self.hovered_button = None
+        
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
         # Click on a level button?
