@@ -130,14 +130,12 @@ while running:
             level_select.handle_event(event)
         elif game_state == STATE_PLAYING:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # Record move count before click
-                pre_moves = hud.move_count
+                # Record if a move actually occurred by checking board state before and after
+                board_empty_pos_before = board.empty_pos
                 board.click_at(event.pos)
-                # SFX on a successful slide
-                if pre_moves != hud.move_count:
+                # If the empty position changed, a move occurred
+                if board_empty_pos_before != board.empty_pos:
                     play_move()
-                # Increment our HUD counter only if a tile actually moved
-                if pre_moves != hud.move_count:
                     hud.increment_moves()
             hud.handle_event(event)
         elif game_state == STATE_PAUSED:
