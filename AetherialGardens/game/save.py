@@ -24,8 +24,24 @@ def load_progress() -> Dict[str, Any]:
     with open(SAVE_PATH, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    # Ensure new format structures exist
     data.setdefault("best_moves", {})
     data.setdefault("best_stars", {})
+    
+    # Migrate old format entries if they exist (from previous implementations)
+    # This handles any legacy keys that might still exist
+    for size in [3, 4, 5]:
+        size_key = f"{size}x{size}"
+        # Check for old-style keys and migrate them
+        old_best_key = f"best_{size_key}"
+        old_star_key = f"stars_{size_key}"
+        
+        if old_best_key in data and data[old_best_key] is not None:
+            data["best_moves"][size_key] = data[old_best_key]
+            
+        if old_star_key in data and data[old_star_key] is not None:
+            data["best_stars"][size_key] = data[old_star_key]
+
     return data
 
 
