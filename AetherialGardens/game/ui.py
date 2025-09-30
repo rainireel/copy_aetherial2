@@ -40,17 +40,20 @@ class Button:
 # Menu – collection of Buttons shown before the game starts.
 # ------------------------------------------------------------
 class Menu:
-    def __init__(self, screen_rect: pygame.Rect, start_cb: Callable[[], None], quit_cb: Callable[[], None]):
+    def __init__(self, screen_rect: pygame.Rect, start_cb: Callable[[], None], settings_cb: Callable[[], None], quit_cb: Callable[[], None]):
         w, h = screen_rect.size
         btn_w, btn_h = 250, 60
         spacing = 20
         center_x = w // 2
         start_rect = pygame.Rect(0, 0, btn_w, btn_h)
-        start_rect.center = (center_x, h // 2 - spacing)
+        start_rect.center = (center_x, h // 2 - spacing * 2)  # Adjust position for 3 buttons
+        settings_rect = pygame.Rect(0, 0, btn_w, btn_h)
+        settings_rect.center = (center_x, h // 2)            # Middle button
         quit_rect = pygame.Rect(0, 0, btn_w, btn_h)
-        quit_rect.center = (center_x, h // 2 + spacing)
+        quit_rect.center = (center_x, h // 2 + spacing * 2)   # Bottom button
         self.buttons = [
             Button(start_rect, "Start", start_cb),
+            Button(settings_rect, "Settings", settings_cb),  # Add settings button
             Button(quit_rect, "Quit", quit_cb),
         ]
         self.title_font = pygame.font.SysFont(None, 72)
