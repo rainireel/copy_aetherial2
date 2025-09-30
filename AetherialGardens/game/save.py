@@ -1,6 +1,4 @@
-"""game/save.py – simple JSON‑based persistence for the MVP.
-Only the built‑in `json` and `os` modules are used.
-"""
+"""game/save.py – JSON persistence for best moves and best star rating."""
 
 import json
 import os
@@ -8,58 +6,35 @@ from typing import Dict, Any
 
 SAVE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "save_data.json")
 
+
 def _ensure_file() -> None:
-    """Create the file with default values if it does not exist."""
+    """Create the file with defaults if it does not exist."""
     if not os.path.isfile(SAVE_PATH):
-        # Initialize with best moves and star ratings for different board sizes
         default = {
-            "best_3x3": None,
-            "best_4x4": None, 
-            "best_5x5": None,
-            "stars_3x3": 0,
-            "stars_4x4": 0,
-            "stars_5x5": 0,
-            "unlocked": True
+            "best_moves": {},      # e.g., {"3x3": 18, "4x4": 45}
+            "best_stars": {},      # e.g., {"3x3": 3, "4x4": 2}
         }
         with open(SAVE_PATH, "w", encoding="utf-8") as f:
             json.dump(default, f, indent=2)
 
+
 def load_progress() -> Dict[str, Any]:
-    """Return the saved dictionary; guarantees keys exist."""
+    """Read the JSON file and guarantee the expected keys exist."""
     _ensure_file()
     with open(SAVE_PATH, "r", encoding="utf-8") as f:
         data = json.load(f)
-    # Handle old format (with best_moves dict) and convert to new format
-    if "best_moves" in data and isinstance(data["best_moves"], dict):
-        # Old format - convert to new format
-        old_best_moves = data["best_moves"]
-        data["best_3x3"] = old_best_moves.get("3x3")
-        data["best_4x4"] = old_best_moves.get("4x4") 
-        data["best_5x5"] = old_best_moves.get("5x5")
-        # Remove the old format
-        del data["best_moves"]
-    
-    # Ensure all board sizes are present in new format
-    data.setdefault("best_3x3", None)
-    data.setdefault("best_4x4", None)
-    data.setdefault("best_5x5", None)
-    # Ensure star ratings are present
-    data.setdefault("stars_3x3", 0)
-    data.setdefault("stars_4x4", 0)
-    data.setdefault("stars_5x5", 0)
-    data.setdefault("unlocked", True)
+
+    data.setdefault("best_moves", {})
+    data.setdefault("best_stars", {})
     return data
+
 
 def save_progress(data: Dict[str, Any]) -> None:
     """Overwrite the JSON file with the supplied dictionary."""
-    # Ensure we're not saving in the old format
-    if "best_moves" in data and isinstance(data["best_moves"], dict):
-        # Convert from old to new format if somehow present
-        old_best_moves = data["best_moves"]
-        data["best_3x3"] = old_best_moves.get("3x3", data.get("best_3x3"))
-        data["best_4x4"] = old_best_moves.get("4x4", data.get("best_4x4"))
-        data["best_5x5"] = old_best_moves.get("5x5", data.get("best_5x5"))
-        del data["best_moves"]
-    
     with open(SAVE_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
+
+def star_key(size: int) -> str:
+    """Utility: turn a board size into the dict key used in JSON."""
+    return f"{size}x{size}"

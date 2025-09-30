@@ -5,5 +5,11 @@
   "best_5x5": null,
   "stars_3x3": 1,
   "stars_4x4": 0,
-  "stars_5x5": 0
+  "stars_5x5": 0,
+  "best_moves": {
+    "3x3": 204
+  },
+  "best_stars": {
+    "3x3": 1
+  }
 }

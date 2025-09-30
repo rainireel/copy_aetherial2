@@ -84,9 +84,10 @@ def start_game(level_info):
     star_hud.set_rating(0)  # Reset star rating display
     
     # Load any previously saved best for this size
-    key = f"best_{level_info.rows}x{level_info.rows}"
-    if key in progress and progress[key] is not None:
-        hud.move_count = progress[key]   # just for display; not a record
+    from .save import star_key
+    size_key = star_key(level_info.rows)
+    if size_key in progress["best_moves"] and progress["best_moves"][size_key] is not None:
+        hud.move_count = progress["best_moves"][size_key]   # just for display; not a record
     game_state = STATE_PLAYING
 
 def toggle_pause():
@@ -175,16 +176,16 @@ while running:
             star_hud.set_rating(rating)
             
             # Record best moves and star rating for this board size
-            moves_key = f"best_{selected_level.rows}x{selected_level.rows}"
-            stars_key = f"stars_{selected_level.rows}x{selected_level.rows}"
+            from .save import star_key
+            size_key = star_key(selected_level.rows)
             
             # Update best moves if this is a new record
-            if (progress.get(moves_key) is None) or (hud.move_count < progress[moves_key]):
-                progress[moves_key] = hud.move_count
+            if (progress["best_moves"].get(size_key) is None) or (hud.move_count < progress["best_moves"][size_key]):
+                progress["best_moves"][size_key] = hud.move_count
                 
             # Update best star rating if this is a new record
-            if rating > progress.get(stars_key, 0):
-                progress[stars_key] = rating
+            if rating > progress["best_stars"].get(size_key, 0):
+                progress["best_stars"][size_key] = rating
 
             # Simple “solved” overlay
             overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
