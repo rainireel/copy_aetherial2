@@ -78,5 +78,9 @@ def play(name: str) -> None:
         if snd:
             snd.play()
 
+def play_move() -> None:
+    """Legacy function to play move sound for compatibility."""
+    play('move')
+
 def start_ambient_loop():
     pygame.mixer.music.play(-1)   # -1 → infinite loop

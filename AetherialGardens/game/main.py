@@ -1,4 +1,4 @@
-"""game/main.py – entry point (now with a Pause‑Menu overlay)."""
+"""game/main.py – entry point (now with extra SFX)."""
 
 import sys
 import pygame
@@ -9,17 +9,24 @@ from pathlib import Path
 # -----------------------------------------------------------------
 from .puzzle import Board
 from .ui import Menu, HUD, LevelSelect
-from .audio import init_mixer, load_sfx, load_music, play, start_ambient_loop
+from .audio import (
+    init_mixer,
+    load_sfx,
+    load_music,
+    play_move,
+    start_ambient_loop,
+    play,                     # <-- NEW
+)
 from .save import load_progress, save_progress, star_key
 from .star import StarHUD
-from .pause import PauseMenu          # <-- NEW
+from .pause import PauseMenu
 
 # -----------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------
 WINDOW_TITLE = "Aetherial Gardens – Shard of Memory"
 WINDOW_SIZE = (800, 600)
-BG_COLOR = (10, 30, 20)          # fallback background colour
+BG_COLOR = (10, 30, 20)
 FPS = 60
 
 # -----------------------------------------------------------------
@@ -34,14 +41,14 @@ clock = pygame.time.Clock()
 # Audio init
 # -----------------------------------------------------------------
 init_mixer()
-_move_sfx = load_sfx()
+_move_sfx = load_sfx()          # populates the _sounds dict
 load_music()
 start_ambient_loop()
 
 # -----------------------------------------------------------------
 # Load persisted progress (best moves + best stars per board size)
 # -----------------------------------------------------------------
-progress = load_progress()   # {"best_moves": {...}, "best_stars": {...}}
+progress = load_progress()
 
 # -----------------------------------------------------------------
 # Game‑state flags
@@ -52,27 +59,25 @@ STATE_PLAYING = "playing"
 STATE_PAUSED = "paused"
 
 game_state = STATE_MENU
-selected_level = None   # will hold a LevelInfo once chosen
-board = None            # created after level selection
+selected_level = None
+board = None
 
 # -----------------------------------------------------------------
-# UI objects (instantiated lazily because they need callbacks)
+# UI objects
 # -----------------------------------------------------------------
 hud = HUD(pygame.Rect(0, 0, *WINDOW_SIZE), pause_cb=lambda: toggle_pause())
 star_hud = StarHUD(pygame.Rect(0, 0, *WINDOW_SIZE))
 
 def quit_game():
-    """Signal the main loop to exit."""
     global running
     running = False
 
 def back_to_menu():
-    """Return from Level‑Select (or from pause) to the Main Menu."""
     global game_state
     game_state = STATE_MENU
 
 def restart_current_level():
-    """Scramble the current board again and reset the HUD."""
+    """Scramble the current board again and reset HUD."""
     global board, hud, star_hud
     if selected_level:
         board = Board(
@@ -85,7 +90,6 @@ def restart_current_level():
         star_hud.set_rating(0)
 
 def start_game(level_info):
-    """Callback from LevelSelect – build a Board of the chosen size."""
     global game_state, board, selected_level, hud, star_hud
     selected_level = level_info
     board = Board(
@@ -95,15 +99,13 @@ def start_game(level_info):
         margin=4,
     )
     hud.move_count = 0
-    # Load any saved best‑move count for display (not a record yet)
     key = star_key(level_info.rows)
     if key in progress["best_moves"]:
         hud.move_count = progress["best_moves"][key]
     game_state = STATE_PLAYING
-    star_hud.set_rating(0)   # clear old stars
+    star_hud.set_rating(0)
 
 def toggle_pause():
-    """Switch between playing and paused."""
     global game_state
     if game_state == STATE_PLAYING:
         game_state = STATE_PAUSED
@@ -125,9 +127,6 @@ level_select = LevelSelect(
     back_cb=back_to_menu,
 )
 
-# -----------------------------------------------------------------
-# Pause overlay (created once, re‑used every time we pause)
-# -----------------------------------------------------------------
 pause_menu = PauseMenu(
     pygame.Rect(0, 0, *WINDOW_SIZE),
     resume_cb=lambda: toggle_pause(),
@@ -136,7 +135,6 @@ pause_menu = PauseMenu(
 )
 
 def switch_state(new_state):
-    """Utility to change the global state safely."""
     global game_state
     game_state = new_state
 
@@ -154,24 +152,17 @@ while running:
             level_select.handle_event(event)
         elif game_state == STATE_PLAYING:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # Check if a valid move is about to be made before incrementing
-                # We need to somehow detect if the board state changed
-                # Store original empty position to compare later
-                original_empty_pos = board.empty_pos
-                
-                # Process the click
+                pre_moves = hud.move_count
                 board.click_at(event.pos)
-                
-                # If the empty position changed, it means a tile was moved
-                if board.empty_pos != original_empty_pos:
-                    # A valid move was made
+                if pre_moves != hud.move_count:
+                    # ----- tile moved: generic move SFX + "place" chime ----- #
+                    play_move()          # legacy generic slide sound
+                    play("place")        # new "correct placement" sound
+                if pre_moves != hud.move_count:
                     hud.increment_moves()
-                    play('move')
             hud.handle_event(event)
         elif game_state == STATE_PAUSED:
-            # The pause overlay consumes its own events
             pause_menu.handle_event(event)
-            # (HUD still receives the pause‑button clicks)
             hud.handle_event(event)
 
     # ------------------------------------------------------------
@@ -184,12 +175,9 @@ while running:
     elif game_state == STATE_LEVEL_SELECT:
         level_select.draw(screen)
     else:  # PLAYING or PAUSED
-        # Background image (if a level is selected)
         if selected_level:
             try:
                 bg = pygame.image.load(str(selected_level.bg_path)).convert()
-                # Scale the background image to fit the entire screen
-                bg = pygame.transform.scale(bg, WINDOW_SIZE)
                 screen.blit(bg, (0, 0))
             except Exception:
                 screen.fill(BG_COLOR)
@@ -200,7 +188,7 @@ while running:
         hud.draw(screen)
 
         # --------------------------------------------------------
-        # ★‑rating – compute & display when solved (same as before)
+        # ★‑rating – compute & display when solved (unchanged)
         # --------------------------------------------------------
         if board.is_solved():
             rating = StarHUD.compute_rating(selected_level.rows, hud.move_count)
@@ -208,19 +196,18 @@ while running:
 
             size_key = star_key(selected_level.rows)
 
-            # Best move logic
+            # Best-move logic (same as before)
             best_moves = progress["best_moves"].get(size_key)
             if best_moves is None or hud.move_count < best_moves:
                 progress["best_moves"][size_key] = hud.move_count
 
-            # Best star logic
+            # Best-star logic
             best_star = progress["best_stars"].get(size_key, 0)
             if rating > best_star:
                 progress["best_stars"][size_key] = rating
-            
-            # Play completion sound when puzzle is solved (with a new best score or star rating)
-            if best_moves == hud.move_count or best_star < rating:
-                play('complete')
+
+            # ----- puzzle‑complete chime ----- #
+            play("complete")   # ★‑SFX addition
 
             overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 120))
@@ -231,12 +218,8 @@ while running:
             rect = msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
             screen.blit(msg, rect)
 
-        # Always draw the star HUD
         star_hud.draw(screen)
 
-        # --------------------------------------------------------
-        # PAUSE overlay – draw on top of everything when paused
-        # --------------------------------------------------------
         if game_state == STATE_PAUSED:
             pause_menu.draw(screen)
 
@@ -244,7 +227,7 @@ while running:
     clock.tick(FPS)
 
 # ------------------------------------------------------------
-# Save progress before exiting (best moves + best stars)
+# Save progress before exiting
 # ------------------------------------------------------------
 save_progress(progress)
 pygame.quit()
