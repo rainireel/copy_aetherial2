@@ -11,11 +11,14 @@ SAVE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "save
 def _ensure_file() -> None:
     """Create the file with default values if it does not exist."""
     if not os.path.isfile(SAVE_PATH):
-        # Initialize with best moves for different board sizes
+        # Initialize with best moves and star ratings for different board sizes
         default = {
             "best_3x3": None,
             "best_4x4": None, 
             "best_5x5": None,
+            "stars_3x3": 0,
+            "stars_4x4": 0,
+            "stars_5x5": 0,
             "unlocked": True
         }
         with open(SAVE_PATH, "w", encoding="utf-8") as f:
@@ -40,6 +43,10 @@ def load_progress() -> Dict[str, Any]:
     data.setdefault("best_3x3", None)
     data.setdefault("best_4x4", None)
     data.setdefault("best_5x5", None)
+    # Ensure star ratings are present
+    data.setdefault("stars_3x3", 0)
+    data.setdefault("stars_4x4", 0)
+    data.setdefault("stars_5x5", 0)
     data.setdefault("unlocked", True)
     return data
 

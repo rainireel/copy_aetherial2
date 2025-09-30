@@ -12,6 +12,7 @@ from .ui import Menu, HUD, LevelSelect
 from .audio import init_mixer, load_sfx, load_music, play_move, start_ambient_loop
 from .save import load_progress, save_progress
 from .levels import LEVELS   # list of LevelInfo objects
+from .star import StarHUD
 
 # -----------------------------------------------------------------
 # Constants
@@ -58,6 +59,7 @@ board = None            # created after a level is chosen
 # UI objects (instantiated lazily because they need callbacks)
 # -----------------------------------------------------------------
 hud = HUD(pygame.Rect(0, 0, *WINDOW_SIZE), pause_cb=lambda: toggle_pause())
+star_hud = StarHUD(pygame.Rect(0, 0, *WINDOW_SIZE))
 
 def quit_game():
     """Signal the main loop to exit."""
@@ -70,7 +72,7 @@ def back_to_menu():
 
 def start_game(level_info):
     """Callback from LevelSelect – build a Board of the chosen size."""
-    global game_state, board, selected_level, hud
+    global game_state, board, selected_level, hud, star_hud
     selected_level = level_info
     board = Board(
         rows=level_info.rows,
@@ -79,6 +81,8 @@ def start_game(level_info):
         margin=4,
     )
     hud.move_count = 0
+    star_hud.set_rating(0)  # Reset star rating display
+    
     # Load any previously saved best for this size
     key = f"best_{level_info.rows}x{level_info.rows}"
     if key in progress and progress[key] is not None:
@@ -163,12 +167,24 @@ while running:
 
         board.draw(screen, pygame.font.SysFont(None, 48))
         hud.draw(screen)
+        star_hud.draw(screen)
 
         if board.is_solved():
-            # Record best moves for this board size
-            key = f"best_{selected_level.rows}x{selected_level.rows}"
-            if (progress.get(key) is None) or (hud.move_count < progress[key]):
-                progress[key] = hud.move_count
+            # Compute star rating
+            rating = StarHUD.compute_rating(selected_level.rows, hud.move_count)
+            star_hud.set_rating(rating)
+            
+            # Record best moves and star rating for this board size
+            moves_key = f"best_{selected_level.rows}x{selected_level.rows}"
+            stars_key = f"stars_{selected_level.rows}x{selected_level.rows}"
+            
+            # Update best moves if this is a new record
+            if (progress.get(moves_key) is None) or (hud.move_count < progress[moves_key]):
+                progress[moves_key] = hud.move_count
+                
+            # Update best star rating if this is a new record
+            if rating > progress.get(stars_key, 0):
+                progress[stars_key] = rating
 
             # Simple “solved” overlay
             overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
@@ -177,6 +193,11 @@ while running:
             msg = pygame.font.SysFont(None, 72).render("Puzzle solved!", True, (255, 255, 255))
             rect = msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
             screen.blit(msg, rect)
+            
+            # Show star rating
+            rating_msg = pygame.font.SysFont(None, 36).render(f"You earned {rating} star{'s' if rating != 1 else ''}!", True, (255, 215, 0))
+            rating_rect = rating_msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 50))
+            screen.blit(rating_msg, rating_rect)
 
     pygame.display.flip()
     clock.tick(FPS)
