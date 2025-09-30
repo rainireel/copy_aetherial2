@@ -4,8 +4,14 @@ Runs a simple 800×600 Pygame window with a dark‑green background.
 
 import sys
 import pygame
-from .puzzle import Board
-from .ui import Menu, HUD
+
+# Handle both direct execution and module import
+try:
+    from .puzzle import Board
+    from .ui import Menu, HUD
+except ImportError:
+    from puzzle import Board
+    from ui import Menu, HUD
 
 # ------------------------------------------------------------
 # Constants (easy to tweak later)
@@ -28,12 +34,12 @@ clock = pygame.time.Clock()
 # Load audio files if they exist
 # ------------------------------------------------------------
 try:
-    move_sound = pygame.mixer.Sound("assets/audio/move.wav")
+    move_sound = pygame.mixer.Sound("assets/audio/move.mp3")
 except pygame.error:
     move_sound = None  # No sound file available
 
 try:
-    pygame.mixer.music.load("assets/audio/ambient.mp3")
+    pygame.mixer.music.load("assets/audio/ambient.wav")
     pygame.mixer.music.play(-1)  # Loop indefinitely
 except pygame.error:
     pass  # No music file available
