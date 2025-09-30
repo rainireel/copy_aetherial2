@@ -132,16 +132,17 @@ class LevelSelect:
 
         self.start_cb = start_cb
         self.back_cb = back_cb
-        self.font = pygame.font.SysFont(None, 36)
-        self.title_font = pygame.font.SysFont(None, 72)
-        self.small_font = pygame.font.SysFont(None, 28)  # For stats text
+        # Pixel-style fonts (using system fonts to simulate pixel style)
+        self.font = pygame.font.SysFont('monospace', 28, bold=True)
+        self.title_font = pygame.font.SysFont('monospace', 36, bold=True)
+        self.small_font = pygame.font.SysFont('monospace', 24)  # For stats text
 
         # Button geometry – increased height to accommodate stats
-        btn_w, btn_h = 320, 90
-        spacing = 30  # Increased spacing between buttons
+        btn_w, btn_h = 320, 95
+        spacing = 35  # Increased spacing between buttons
         total_h = len(self.levels) * (btn_h + spacing) - spacing
         # Position buttons lower to avoid title overlap
-        start_y = (screen_rect.height - total_h) // 2 + 50
+        start_y = (screen_rect.height - total_h) // 2 + 60
         center_x = screen_rect.centerx
 
         self.buttons = []          # list of (rect, LevelInfo)
@@ -152,7 +153,7 @@ class LevelSelect:
             self.buttons.append((r, lvl))
 
         # Back button with better styling
-        back_btn_width, back_btn_height = 80, 35
+        back_btn_width, back_btn_height = 90, 40
         self.back_rect = pygame.Rect(
             15, 15, back_btn_width, back_btn_height
         )
@@ -164,91 +165,184 @@ class LevelSelect:
         # Track mouse position for hover effects
         self.hovered_button = None
 
+        # Time tracking for animations
+        self.last_star_animation = pygame.time.get_ticks()
+        self.star_frame = 0
+
     # -----------------------------------------------------------------
-    # Helper: draw a tiny row of stars (0‑3) next to a level entry
+    # Helper: draw pixel-style small stars with animation
     # -----------------------------------------------------------------
-    def _draw_small_stars(self, surf: pygame.Surface, center: tuple[int, int], rating: int):
-        """Draw 0‑3 gold stars of a reduced size (radius = 8)."""
-        star_radius = 8
-        spacing = 5
+    def _draw_small_stars(self, surf: pygame.Surface, center: tuple[int, int], rating: int, is_hovered=False):
+        """Draw 0‑3 gold stars in pixel art style with optional animation."""
+        star_size = 10  # pixel size
+        spacing = 6
+        
         for i in range(rating):
-            cx = center[0] + i * (star_radius * 2 + spacing) - ((rating - 1) * (star_radius * 2 + spacing)) // 2
-            points = []
-            for j in range(10):
-                ang = j * 36
-                rad = star_radius if j % 2 == 0 else star_radius // 2
-                vec = pygame.math.Vector2(1, 0).rotate(ang) * rad
-                points.append((cx + int(vec.x), center[1] + int(vec.y)))
-            pygame.draw.polygon(surf, (255, 215, 0), points)
+            # Calculate x position for each star
+            total_width = rating * star_size + (rating - 1) * spacing
+            start_x = center[0] - total_width // 2
+            
+            star_x = start_x + i * (star_size + spacing)
+            star_y = center[1] - star_size // 2
+            
+            # Draw a pixel-style star
+            star_color = (255, 215, 0)  # Gold color
+            if is_hovered:
+                # Brighten hover effect
+                star_color = (255, 230, 100)
+            
+            # Draw star as a pixel-art style shape (a small star made of pixels)
+            # Center point
+            pygame.draw.rect(surf, star_color, (star_x + 4, star_y + 1, 2, 2))
+            pygame.draw.rect(surf, star_color, (star_x + 3, star_y + 2, 4, 2))
+            pygame.draw.rect(surf, star_color, (star_x + 2, star_y + 3, 6, 2))
+            pygame.draw.rect(surf, star_color, (star_x + 1, star_y + 4, 8, 2))
+            pygame.draw.rect(surf, star_color, (star_x + 2, star_y + 5, 6, 2))
+            pygame.draw.rect(surf, star_color, (star_x + 3, star_y + 6, 4, 2))
+            pygame.draw.rect(surf, star_color, (star_x + 4, star_y + 7, 2, 2))
+
+    # -----------------------------------------------------------------
+    # Draw pixel-style difficulty icons
+    # -----------------------------------------------------------------
+    def _draw_difficulty_icon(self, surf: pygame.Surface, pos: tuple[int, int], level_size: int):
+        """Draw pixel art icons representing difficulty."""
+        x, y = pos
+        icon_color = (100, 180, 80)  # Green
+        
+        if level_size == 3:  # 3x3 - easy: sprout
+            # Pixel art sprout
+            pygame.draw.rect(surf, (120, 90, 40), (x + 4, y + 8, 2, 4))  # stem
+            pygame.draw.circle(surf, icon_color, (x + 3, y + 7), 2)  # left leaf
+            pygame.draw.circle(surf, icon_color, (x + 7, y + 7), 2)  # right leaf
+        elif level_size == 4:  # 4x4 - medium: bush
+            # Pixel art bush
+            pygame.draw.circle(surf, icon_color, (x + 5, y + 6), 4)
+        elif level_size == 5:  # 5x5 - hard: tree
+            # Pixel art tree
+            pygame.draw.rect(surf, (120, 90, 40), (x + 4, y + 6, 2, 4))  # trunk
+            pygame.draw.circle(surf, icon_color, (x + 5, y + 5), 4)  # leaves
 
     # -----------------------------------------------------------------
     # Rendering
     # -----------------------------------------------------------------
     def draw(self, surf: pygame.Surface) -> None:
-        # Aetherial garden themed background
-        overlay = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-        # Deep forest green to dark blue gradient overlay
-        overlay.fill((5, 25, 15, 200))
+        # Pixel-style garden background (dark green with subtle pattern)
+        overlay = pygame.Surface(surf.get_size())
+        overlay.fill((10, 30, 20))  # Dark green background
+        # Add subtle grid pattern to simulate pixel background
+        for y in range(0, surf.get_height(), 20):
+            for x in range(0, surf.get_width(), 20):
+                if (x // 20 + y // 20) % 2 == 0:
+                    pygame.draw.rect(overlay, (8, 25, 18), (x, y, 10, 10))
         surf.blit(overlay, (0, 0))
 
-        # Title positioned higher to avoid overlap
-        title = self.title_font.render("Select a Garden", True, (180, 230, 180))
-        # Position title higher on screen
-        title_rect = title.get_rect(center=(surf.get_width() // 2, 80))
-        # Add a subtle glow effect around the title
-        title_glow = self.title_font.render("Select a Garden", True, (100, 180, 100))
-        for dx, dy in [(-2, -2), (-2, 2), (2, -2), (2, 2)]:
-            surf.blit(title_glow, (title_rect.x + dx, title_rect.y + dy))
+        # Title with pixel-style glow effect
+        title = self.title_font.render("SELECT GARDEN", True, (180, 230, 150))  # Pastel green
+        title_rect = title.get_rect(center=(surf.get_width() // 2, 70))
+        
+        # Pixel-style outline effect (draw the text multiple times offset by 1 pixel)
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                if dx != 0 or dy != 0:  # Skip the center
+                    outline = self.title_font.render("SELECT GARDEN", True, (50, 100, 50))
+                    surf.blit(outline, (title_rect.x + dx, title_rect.y + dy))
         surf.blit(title, title_rect)
 
         # Level buttons + saved stats
+        current_time = pygame.time.get_ticks()
+        # Animate stars every 500ms
+        if current_time - self.last_star_animation > 500:
+            self.star_frame = (self.star_frame + 1) % 3
+            self.last_star_animation = current_time
+
         for idx, (rect, lvl) in enumerate(self.buttons):
             # Determine if this button is being hovered
             is_hovered = self.hovered_button == idx
             
-            # Button background with nature-themed colors
-            bg_color = (85, 140, 110) if is_hovered else (70, 120, 100)
-            border_color = (40, 80, 65) if not is_hovered else (60, 110, 85)
+            # Button background with pixel-style wooden frame
+            bg_color = (120, 100, 70) if is_hovered else (100, 85, 60)  # Wood brown tones
+            border_color = (70, 55, 35) if not is_hovered else (140, 120, 90)
             
-            pygame.draw.rect(surf, bg_color, rect, border_radius=12)
-            pygame.draw.rect(surf, border_color, rect, 2, border_radius=12)
+            # Draw pixel-style button with wooden frame
+            pygame.draw.rect(surf, bg_color, rect)
+            # Inner border for more pixel-art style
+            inner_rect = pygame.Rect(rect.x + 2, rect.y + 2, rect.width - 4, rect.height - 4)
+            pygame.draw.rect(surf, (130, 110, 90), inner_rect)
             
-            # Add subtle inner shadow for depth
-            inner_rect = pygame.Rect(
-                rect.x + 2, rect.y + 2, rect.width - 4, rect.height - 4
-            )
-            pygame.draw.rect(surf, (60, 100, 85), inner_rect, 1, border_radius=10)
+            # Draw pixel-art frame
+            pygame.draw.rect(surf, border_color, rect, 2)
+            # Additional pixel-style corner details
+            pygame.draw.rect(surf, border_color, (rect.x, rect.y, 4, 2))
+            pygame.draw.rect(surf, border_color, (rect.x, rect.y, 2, 4))
+            pygame.draw.rect(surf, border_color, (rect.right - 4, rect.y, 4, 2))
+            pygame.draw.rect(surf, border_color, (rect.right - 2, rect.y, 2, 4))
+            pygame.draw.rect(surf, border_color, (rect.x, rect.bottom - 2, 4, 2))
+            pygame.draw.rect(surf, border_color, (rect.x, rect.bottom - 4, 2, 4))
+            pygame.draw.rect(surf, border_color, (rect.right - 4, rect.bottom - 2, 4, 2))
+            pygame.draw.rect(surf, border_color, (rect.right - 2, rect.bottom - 4, 2, 4))
 
             # Button label (e.g., “Garden – 3 × 3”) - left aligned
-            txt = self.font.render(lvl.name, True, (240, 250, 230))
-            txt_rect = txt.get_rect(midleft=(rect.left + 20, rect.centery - 10))
-            surf.blit(txt, txt_rect)
+            txt = self.font.render(lvl.name, True, (240, 250, 200))  # Light beige
+            # Pixel-style outline for button text
+            for dx in [-1, 1]:
+                for dy in [-1, 1]:
+                    outline_txt = self.font.render(lvl.name, True, (80, 70, 60))
+                    surf.blit(outline_txt, (rect.left + 20 + dx, rect.centery - 20 + dy))
+            surf.blit(txt, (rect.left + 20, rect.centery - 20))
+
+            # Draw difficulty icon
+            self._draw_difficulty_icon(surf, (rect.left + 20, rect.centery + 5), lvl.rows)
 
             # ------- draw saved best moves (right side of button) -------
             size_key = self.star_key(lvl.rows)
             best_moves = self.progress["best_moves"].get(size_key)
+            
             if best_moves is not None:
-                moves_txt = self.small_font.render(f"Best: {best_moves}", True, (220, 240, 200))
-                moves_rect = moves_txt.get_rect(midright=(rect.right - 15, rect.centery - 10))
-                surf.blit(moves_txt, moves_rect)
+                moves_txt = self.small_font.render(f"🌟 BEST: {best_moves}", True, (220, 240, 180))  # Soft beige
+                # Pixel-style outline for moves text
+                for dx in [-1, 1]:
+                    for dy in [-1, 1]:
+                        outline_txt = self.small_font.render(f"🌟 BEST: {best_moves}", True, (80, 70, 60))
+                        surf.blit(outline_txt, (rect.right - 15 - moves_txt.get_width() + dx, rect.centery - 18 + dy))
+                surf.blit(moves_txt, (rect.right - 15 - moves_txt.get_width(), rect.centery - 18))
             else:
-                # Show "Not solved" or keep space empty
-                placeholder_txt = self.small_font.render("-", True, (150, 170, 150))
-                placeholder_rect = placeholder_txt.get_rect(midright=(rect.right - 15, rect.centery - 10))
-                surf.blit(placeholder_txt, placeholder_rect)
+                # Show "Not Played" for unattempted levels
+                placeholder_txt = self.small_font.render("❓ NOT PLAYED", True, (150, 170, 150))  # Pale green
+                # Pixel-style outline for placeholder text
+                for dx in [-1, 1]:
+                    for dy in [-1, 1]:
+                        outline_txt = self.small_font.render("❓ NOT PLAYED", True, (70, 80, 70))
+                        surf.blit(outline_txt, (rect.right - 15 - placeholder_txt.get_width() + dx, rect.centery - 18 + dy))
+                surf.blit(placeholder_txt, (rect.right - 15 - placeholder_txt.get_width(), rect.centery - 18))
 
             # ------- draw saved best stars (centered below the name/moves) -------
             best_stars = self.progress["best_stars"].get(size_key, 0)
             # Position stars centered below the level name and move count
             star_center = (rect.centerx, rect.centery + 15)
-            self._draw_small_stars(surf, star_center, best_stars)
+            self._draw_small_stars(surf, star_center, best_stars, is_hovered)
 
-        # Styled back button matching the theme
-        pygame.draw.rect(surf, (45, 85, 65), self.back_rect, border_radius=8)
-        pygame.draw.rect(surf, (30, 60, 45), self.back_rect, 2, border_radius=8)
-        back_txt = self.small_font.render("Back", True, (220, 240, 220))
-        back_txt_rect = back_txt.get_rect(center=self.back_rect.center)
-        surf.blit(back_txt, back_txt_rect)
+        # Styled back button matching the theme (pixel-style wooden button)
+        pygame.draw.rect(surf, (100, 85, 60), self.back_rect)
+        pygame.draw.rect(surf, (70, 55, 35), self.back_rect, 2)
+        # Pixel-style corner details for back button
+        pygame.draw.rect(surf, (70, 55, 35), (self.back_rect.x, self.back_rect.y, 3, 2))
+        pygame.draw.rect(surf, (70, 55, 35), (self.back_rect.x, self.back_rect.y, 2, 3))
+        pygame.draw.rect(surf, (70, 55, 35), (self.back_rect.right - 3, self.back_rect.y, 3, 2))
+        pygame.draw.rect(surf, (70, 55, 35), (self.back_rect.right - 2, self.back_rect.y, 2, 3))
+        pygame.draw.rect(surf, (70, 55, 35), (self.back_rect.x, self.back_rect.bottom - 2, 3, 2))
+        pygame.draw.rect(surf, (70, 55, 35), (self.back_rect.x, self.back_rect.bottom - 3, 2, 3))
+        pygame.draw.rect(surf, (70, 55, 35), (self.back_rect.right - 3, self.back_rect.bottom - 2, 3, 2))
+        pygame.draw.rect(surf, (70, 55, 35), (self.back_rect.right - 2, self.back_rect.bottom - 3, 2, 3))
+        
+        back_txt = self.small_font.render("BACK", True, (220, 240, 220))
+        # Pixel-style outline for back button text
+        for dx in [-1, 1]:
+            for dy in [-1, 1]:
+                outline_txt = self.small_font.render("BACK", True, (80, 70, 60))
+                surf.blit(outline_txt, (self.back_rect.centerx - back_txt.get_width() // 2 + dx, 
+                                      self.back_rect.centery - back_txt.get_height() // 2 + dy))
+        surf.blit(back_txt, (self.back_rect.centerx - back_txt.get_width() // 2, 
+                            self.back_rect.centery - back_txt.get_height() // 2))
 
     # -----------------------------------------------------------------
     # Event handling
