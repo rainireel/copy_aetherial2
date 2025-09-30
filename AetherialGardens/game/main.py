@@ -4,7 +4,8 @@ Runs a simple 800×600 Pygame window with a dark‑green background.
 
 import sys
 import pygame
-from puzzle import Board
+from .puzzle import Board
+from .ui import Menu, HUD
 
 # ------------------------------------------------------------
 # Constants (easy to tweak later)
@@ -23,31 +24,72 @@ screen = pygame.display.set_mode(WINDOW_SIZE)
 clock = pygame.time.Clock()
 
 # -----------------------------------------------------------------
-# Initialise board (3×3) – can be tweaked later via Board(rows, cols)
+# Game state flags
 # -----------------------------------------------------------------
-board = Board(rows=3, cols=3, tile_size=150, margin=5)
+STATE_MENU = "menu"
+STATE_PLAYING = "playing"
+STATE_PAUSED = "paused"
 
 # Main loop – keep the window responsive until the user closes it.
 running = True
+game_state = STATE_MENU
+
+def start_game():
+    global game_state, board, hud
+    board = Board(rows=3, cols=3, tile_size=150, margin=5) # fresh scramble
+    hud.move_count = 0
+    game_state = STATE_PLAYING
+
+def quit_game():
+    global running
+    running = False
+
+def toggle_pause():
+    global game_state
+    if game_state == STATE_PLAYING:
+        game_state = STATE_PAUSED
+    elif game_state == STATE_PAUSED:
+        game_state = STATE_PLAYING
+
+# -----------------------------------------------------------------
+# Initialise objects that live across states
+# -----------------------------------------------------------------
+board = Board(rows=3, cols=3, tile_size=150, margin=5)
+hud = HUD(pygame.Rect(0, 0, *WINDOW_SIZE), pause_cb=toggle_pause)
+menu = Menu(pygame.Rect(0, 0, *WINDOW_SIZE), start_cb=start_game, quit_cb=quit_game)
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            board.click_at(event.pos)
+        elif game_state == STATE_MENU:
+            menu.handle_event(event)
+        elif game_state == STATE_PLAYING:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                before = board.is_solved()
+                board.click_at(event.pos)
+                # Increment moves only if a tile actually moved
+                if not before and not board.is_solved():
+                    hud.increment_moves()
+                hud.handle_event(event)
+        elif game_state == STATE_PAUSED:
+            hud.handle_event(event) # allow un‑pause via button
 
-    # Clear screen and draw the puzzle board
+    # -----------------------------------------------------------------
+    # Rendering – draw according to the current state
+    # -----------------------------------------------------------------
     screen.fill(BG_COLOR)
-    board.draw(screen, pygame.font.SysFont(None, 48))
-
-    # Show a simple overlay when the puzzle is solved
-    if board.is_solved():
-        overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 120))
-        screen.blit(overlay, (0, 0))
-        congrats = pygame.font.SysFont(None, 72).render("Puzzle solved!", True, (255, 255, 255))
-        rect = congrats.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
-        screen.blit(congrats, rect)
+    if game_state == STATE_MENU:
+        menu.draw(screen)
+    else:
+        board.draw(screen, pygame.font.SysFont(None, 48))
+        hud.draw(screen)
+        if board.is_solved():
+            overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 120))
+            screen.blit(overlay, (0, 0))
+            msg = pygame.font.SysFont(None, 72).render("Puzzle solved!", True, (255, 255, 255))
+            rect = msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
+            screen.blit(msg, rect)
 
     pygame.display.flip()
     clock.tick(FPS)
