@@ -291,7 +291,7 @@ class LevelSelect:
             # Draw pixel-style button with wooden frame
             pygame.draw.rect(surf, bg_color, rect)
             # Inner border for more pixel-art style
-            inner_rect = pygame.Rect(rect.x + 3, rect.y + 3, rect.width - 6, rect.height - 6)
+            inner_rect = pygame.Rect(rect.x + 5, rect.y + 5, rect.width - 10, rect.height - 10)  # Increased padding
             pygame.draw.rect(surf, (130, 110, 90), inner_rect)
             
             # Draw pixel-art frame with enhanced corners
@@ -306,19 +306,19 @@ class LevelSelect:
             pygame.draw.rect(surf, border_color, (rect.right - 4, rect.bottom - 2, 4, 2))
             pygame.draw.rect(surf, border_color, (rect.right - 2, rect.bottom - 4, 2, 4))
 
-            # Button label (e.g., “Garden – 3 × 3”) - left aligned with better padding
+            # Button label (e.g., “Garden – 3 × 3”) - top row, left aligned with more padding
             txt = self.font.render(lvl.name, True, (240, 250, 200))  # Light beige
             # Pixel-style outline for button text
             for dx in [-1, 1]:
                 for dy in [-1, 1]:
                     outline_txt = self.font.render(lvl.name, True, (80, 70, 60))
-                    surf.blit(outline_txt, (rect.left + 25 + dx, rect.centery - 25 + dy))
-            surf.blit(txt, (rect.left + 25, rect.centery - 25))
+                    surf.blit(outline_txt, (rect.left + 30 + dx, rect.top + 20 + dy))  # More padding from top
+            surf.blit(txt, (rect.left + 30, rect.top + 20))
 
-            # Draw difficulty icon slightly below the name
-            self._draw_difficulty_icon(surf, (rect.left + 25, rect.centery - 5), lvl.rows)
+            # Draw difficulty icon to the right of the name
+            self._draw_difficulty_icon(surf, (rect.right - 100, rect.top + 22), lvl.rows)
 
-            # ------- draw saved best moves (right side, with more spacing) -------
+            # Status row: best moves (right aligned in button) - separate from title row
             size_key = self.star_key(lvl.rows)
             best_moves = self.progress["best_moves"].get(size_key)
             
@@ -329,8 +329,8 @@ class LevelSelect:
                 for dx in [-1, 1]:
                     for dy in [-1, 1]:
                         outline_txt = self.small_font.render(f"🌟 BEST: {best_moves}", True, (80, 70, 60))
-                        surf.blit(outline_txt, (rect.right - 20 - moves_txt.get_width() + dx, rect.centery - 25 + dy))
-                surf.blit(moves_txt, (rect.right - 20 - moves_txt.get_width(), rect.centery - 25))
+                        surf.blit(outline_txt, (rect.right - 30 - moves_txt.get_width() + dx, rect.top + 20 + dy))  # Same vertical alignment as title
+                surf.blit(moves_txt, (rect.right - 30 - moves_txt.get_width(), rect.top + 20))
             else:
                 # Show "Not Played" for unattempted levels
                 placeholder_txt = self.status_font.render("❓ NOT PLAYED", True, (150, 170, 150))  # Pale green
@@ -338,13 +338,13 @@ class LevelSelect:
                 for dx in [-1, 1]:
                     for dy in [-1, 1]:
                         outline_txt = self.status_font.render("❓ NOT PLAYED", True, (70, 80, 70))
-                        surf.blit(outline_txt, (rect.right - 20 - placeholder_txt.get_width() + dx, rect.centery - 25 + dy))
-                surf.blit(placeholder_txt, (rect.right - 20 - placeholder_txt.get_width(), rect.centery - 25))
+                        surf.blit(outline_txt, (rect.right - 30 - placeholder_txt.get_width() + dx, rect.top + 20 + dy))  # Same vertical alignment as title
+                surf.blit(placeholder_txt, (rect.right - 30 - placeholder_txt.get_width(), rect.top + 20))
 
-            # Draw best stars below both the level name and the status text
+            # Draw best stars centered below the text rows
             best_stars = self.progress["best_stars"].get(size_key, 0)
-            # Position stars centered below the other text
-            star_center = (rect.centerx, rect.centery + 10)
+            # Position stars centered below the other text, with more vertical space
+            star_center = (rect.centerx, rect.centery + 15)  # More vertical spacing
             self._draw_small_stars(surf, star_center, best_stars, is_hovered)
 
         # Styled back button matching the theme (pixel-style wooden button)
