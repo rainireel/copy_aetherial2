@@ -10,10 +10,12 @@ try:
     from .puzzle import Board
     from .ui import Menu, HUD
     from .audio import init_mixer, load_sfx, load_music, play_move, start_ambient_loop
+    from .save import load_progress, save_progress
 except ImportError:
     from puzzle import Board
     from ui import Menu, HUD
     from audio import init_mixer, load_sfx, load_music, play_move, start_ambient_loop
+    from save import load_progress, save_progress
 
 # ------------------------------------------------------------
 # Constants (easy to tweak later)
@@ -46,6 +48,11 @@ STATE_MENU = "menu"
 STATE_PLAYING = "playing"
 STATE_PAUSED = "paused"
 
+# Load saved progress
+save_data = load_progress()
+best_moves = save_data.get("best_moves", None)
+garden_unlocked = save_data.get("unlocked", True)
+
 # Main loop – keep the window responsive until the user closes it.
 running = True
 game_state = STATE_MENU
@@ -71,6 +78,12 @@ def start_game():
 
 def quit_game():
     global running
+    # Save the current best moves before quitting
+    save_data = {
+        "best_moves": best_moves,
+        "unlocked": garden_unlocked
+    }
+    save_progress(save_data)
     running = False
 
 # -----------------------------------------------------------------
@@ -117,12 +130,29 @@ while running:
             text_rect = paused_text.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
             screen.blit(paused_text, text_rect)
         if board.is_solved():
+            # Check for best move count
+            if best_moves is None or hud.move_count < best_moves:
+                best_moves = hud.move_count
+                # Save the new best score
+                save_data = {
+                    "best_moves": best_moves,
+                    "unlocked": garden_unlocked
+                }
+                save_progress(save_data)
+            
             overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 120))
             screen.blit(overlay, (0, 0))
+            # Show both "Puzzle solved!" and best moves
             msg = pygame.font.SysFont(None, 72).render("Puzzle solved!", True, (255, 255, 255))
-            rect = msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
-            screen.blit(msg, rect)
+            msg_rect = msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 30))
+            screen.blit(msg, msg_rect)
+            
+            # Show best move count
+            if best_moves is not None:
+                best_msg = pygame.font.SysFont(None, 36).render(f"Best: {best_moves} moves", True, (255, 255, 100))
+                best_rect = best_msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 30))
+                screen.blit(best_msg, best_rect)
 
     pygame.display.flip()
     clock.tick(FPS)
