@@ -1,11 +1,4 @@
-"""game/audio.py – audio helper with a sound‑effect dictionary.
-
-The module now loads:
-* move.*            – generic tile‑slide SFX (tries .mp3 first, then .wav)
-* place.*           – sound for a *correct* tile placement (tries .mp3 first, then .wav)  
-* complete.*        – chime when the puzzle is solved (tries .mp3 first, then .wav)
-* ui_click.*        – UI button click feedback (tries .mp3 first, then .wav)
-"""
+"""game/audio.py – audio helper with a sound‑effect dictionary and volume control."""
 
 import os
 import pygame
@@ -24,12 +17,12 @@ def _load_sfx() -> dict[str, pygame.mixer.Sound]:
     base = os.path.join('assets', 'audio')
     sounds = {}
     
-    # List of sounds to try loading (prioritizing existing files)
+    # Try different extensions for each sound file to handle both WAV and MP3
     sound_files = {
-        "move": ["move.wav", "move.mp3"],           # move.wav is the new file you added
-        "place": ["place.mp3", "place.wav"],       # place.mp3 exists, will try place.wav as fallback
-        "complete": ["complete.wav", "complete.mp3"], # complete.wav is the new file you added
-        "ui": ["ui_click.mp3", "ui_click.wav"]     # ui_click.mp3 exists, will try ui_click.wav as fallback
+        "move": ["move.wav", "move.mp3"],
+        "place": ["place.mp3", "place.wav"],
+        "complete": ["complete.wav", "complete.mp3"],
+        "ui": ["ui_click.mp3", "ui_click.wav"]
     }
     
     for key, filenames in sound_files.items():
@@ -47,32 +40,37 @@ def _load_sfx() -> dict[str, pygame.mixer.Sound]:
         else:
             print(f"Warning: Could not load sound file for '{key}'")
     
-    # Lower volume a little for UI clicks so they don't dominate
+    # UI clicks are a little softer by default
     if "ui" in sounds:
         sounds["ui"].set_volume(0.5)
     return sounds
 
-# The dictionary is created once at import time (after init_mixer() is called)
 _sounds: dict[str, pygame.mixer.Sound] = {}
 
 def load_sfx():
     """Public wrapper – call after `init_mixer()`."""
     global _sounds
     _sounds = _load_sfx()
-    # Return the move sound for legacy compatibility, or None if not found
-    return _sounds.get("move")
+    return _sounds["move"]          # legacy compatibility
 
 def load_music():
     """Load the ambient background music."""
-    music_path = os.path.join('assets', 'audio', 'ambient.wav')
-    pygame.mixer.music.load(music_path)
-    pygame.mixer.music.set_volume(0.4)  # soft background level
+    # Try both .wav and .mp3 extensions for ambient music
+    base = os.path.join('assets', 'audio')
+    music_path = os.path.join(base, 'ambient.wav')
+    try:
+        pygame.mixer.music.load(music_path)
+    except pygame.error:
+        music_path = os.path.join(base, 'ambient.mp3')
+        pygame.mixer.music.load(music_path)
+    
+    pygame.mixer.music.set_volume(0.4)
 
 # -----------------------------------------------------------------
 # Public helpers used throughout the game
 # -----------------------------------------------------------------
 def play(name: str) -> None:
-    """Play a sound by key (e.g., ``play('place')``). Silently ignore unknown keys."""
+    """Play a sound by key (e.g., play('place')). Silently ignore unknown keys."""
     if _sounds:
         snd = _sounds.get(name)
         if snd:
@@ -82,12 +80,14 @@ def play_move() -> None:
     """Legacy function to play move sound for compatibility."""
     play('move')
 
-def set_volume(vol: float) -> None:
-    """Set volume for all SFX and music (0.0 to 1.0)."""
-    global _sounds
-    for sound in _sounds.values():
-        sound.set_volume(vol)
-    pygame.mixer.music.set_volume(vol)
+def set_volume(level: float) -> None:
+    """
+    Set the master volume for music *and* all SFX.
+    ``level`` is a float between 0.0 and 1.0.
+    """
+    pygame.mixer.music.set_volume(level)
+    for snd in _sounds.values():
+        snd.set_volume(level)
 
 def start_ambient_loop():
     pygame.mixer.music.play(-1)   # -1 → infinite loop
