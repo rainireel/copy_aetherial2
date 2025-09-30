@@ -102,65 +102,114 @@ class HUD:
 
 # ------------------------------------------------------------
 # LevelSelect – shows a button for each entry in `levels.LEVELS`.
+# Also displays the best‑move count and best‑star rating saved in
+# `save_data.json`.
 # ------------------------------------------------------------
 class LevelSelect:
     """
-    UI screen that lets the player choose a garden size.
-
-    Parameters
-    ----------
-    screen_rect : pygame.Rect
-        Size of the window; used for centering the buttons.
-    start_cb : callable
-        Called with the selected ``LevelInfo`` when the player clicks a level.
-    back_cb : callable
-        Called when the player clicks the "Back" button.
+    UI screen that lets the player choose a garden size and shows
+    the best performance for each level (moves + stars).
     """
+
     def __init__(self, screen_rect: pygame.Rect, start_cb, back_cb):
-        # Import here to avoid circular import problems (ui → levels → ui)
+        # -----------------------------------------------------------------
+        # Imports that are needed only here (avoid circular imports)
+        # -----------------------------------------------------------------
+        from .save import load_progress, star_key
+        from .star import StarHUD
+
+        # -----------------------------------------------------------------
+        # Load persisted progress (once, when the screen is created)
+        # -----------------------------------------------------------------
+        self.progress = load_progress()                 # {"best_moves": {}, "best_stars": {}}
+        self.star_key = star_key                       # helper to build "3x3", "4x4", …
+
+        # -----------------------------------------------------------------
+        # Build UI elements
+        # -----------------------------------------------------------------
         from .levels import LEVELS
         self.levels = LEVELS
+
         self.start_cb = start_cb
         self.back_cb = back_cb
         self.font = pygame.font.SysFont(None, 36)
+        self.title_font = pygame.font.SysFont(None, 72)
 
-        # Build a button‑like rect for each level (centered vertically)
+        # Button geometry – same as before
         btn_w, btn_h = 300, 80
         spacing = 20
         total_h = len(self.levels) * (btn_h + spacing) - spacing
         start_y = (screen_rect.height - total_h) // 2
+        center_x = screen_rect.centerx
 
         self.buttons = []          # list of (rect, LevelInfo)
         for idx, lvl in enumerate(self.levels):
-            rect = pygame.Rect(
-                (screen_rect.width - btn_w) // 2,
-                start_y + idx * (btn_h + spacing),
-                btn_w,
-                btn_h,
-            )
-            self.buttons.append((rect, lvl))
+            r = pygame.Rect(0, 0, btn_w, btn_h)
+            r.centerx = center_x
+            r.y = start_y + idx * (btn_h + spacing)
+            self.buttons.append((r, lvl))
 
         # Back button (small rectangle at top‑left)
         self.back_rect = pygame.Rect(10, 10, 60, 30)
 
+        # Re‑use the star‑drawing helper for the small thumbnails
+        # Pass screen_rect instead of WINDOW_SIZE directly
+        self.star_hud = StarHUD(pygame.Rect(0, 0, *screen_rect.size))
+
+    # -----------------------------------------------------------------
+    # Helper: draw a tiny row of stars (0‑3) next to a level entry
+    # -----------------------------------------------------------------
+    def _draw_small_stars(self, surf: pygame.Surface, center: tuple[int, int], rating: int):
+        """Draw 0‑3 gold stars of a reduced size (radius = 8)."""
+        star_radius = 8
+        spacing = 3
+        for i in range(rating):
+            cx = center[0] + i * (star_radius * 2 + spacing) - ((rating - 1) * (star_radius + spacing)) // 2
+            points = []
+            for j in range(10):
+                ang = j * 36
+                rad = star_radius if j % 2 == 0 else star_radius // 2
+                vec = pygame.math.Vector2(1, 0).rotate(ang) * rad
+                points.append((cx + int(vec.x), center[1] + int(vec.y)))
+            pygame.draw.polygon(surf, (255, 215, 0), points)
+
+    # -----------------------------------------------------------------
+    # Rendering
+    # -----------------------------------------------------------------
     def draw(self, surf: pygame.Surface) -> None:
-        # Dark translucent overlay so the menu feels distinct
+        # Dark overlay background
         overlay = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 150))
         surf.blit(overlay, (0, 0))
 
         # Title
-        title = self.font.render("Select Level", True, (200, 230, 200))
-        title_rect = title.get_rect(center=(surf.get_width() // 2, 80))
+        title = self.title_font.render("Select a Garden", True, (200, 230, 200))
+        title_rect = title.get_rect(center=(surf.get_width() // 2, surf.get_height() // 3))
         surf.blit(title, title_rect)
 
-        # Level buttons
+        # Level buttons + saved stats
         for rect, lvl in self.buttons:
             pygame.draw.rect(surf, (70, 120, 90), rect, border_radius=8)
             pygame.draw.rect(surf, (30, 60, 45), rect, 2, border_radius=8)
+
+            # Button label (e.g., “Garden – 3 × 3”)
             txt = self.font.render(lvl.name, True, (255, 255, 255))
-            txt_rect = txt.get_rect(center=rect.center)
+            txt_rect = txt.get_rect(midleft=(rect.left + 15, rect.centery))
             surf.blit(txt, txt_rect)
+
+            # ------- draw saved best moves (right side of button) -------
+            size_key = self.star_key(lvl.rows)
+            best_moves = self.progress["best_moves"].get(size_key)
+            if best_moves is not None:
+                moves_txt = self.font.render(f"Best: {best_moves}", True, (220, 220, 180))
+                moves_rect = moves_txt.get_rect(midright=(rect.right - 15, rect.centery - 12))
+                surf.blit(moves_txt, moves_rect)
+
+            # ------- draw saved best stars (below the moves) -------
+            best_stars = self.progress["best_stars"].get(size_key, 0)
+            # Center the small star row under the moves text
+            star_center = (rect.centerx, rect.centery + 20)
+            self._draw_small_stars(surf, star_center, best_stars)
 
         # Back button
         pygame.draw.rect(surf, (80, 40, 40), self.back_rect, border_radius=5)
@@ -169,13 +218,16 @@ class LevelSelect:
         back_txt_rect = back_txt.get_rect(center=self.back_rect.center)
         surf.blit(back_txt, back_txt_rect)
 
+    # -----------------------------------------------------------------
+    # Event handling
+    # -----------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
         # Click on a level button?
         for rect, lvl in self.buttons:
             if rect.collidepoint(event.pos):
-                self.start_cb(lvl)        # send LevelInfo back to main
+                self.start_cb(lvl)
                 return
         # Click on Back?
         if self.back_rect.collidepoint(event.pos):
