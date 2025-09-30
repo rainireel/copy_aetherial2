@@ -36,11 +36,12 @@ class Tile:
 # Board – holds a 2‑D list of Tiles and implements move logic.
 # ------------------------------------------------------------
 class Board:
-    def __init__(self, rows: int = 3, cols: int = 3, tile_size: int = 150, margin: int = 5):
+    def __init__(self, rows: int = 3, cols: int = 3, tile_size: int = 150, margin: int = 5, move_sound=None):
         self.rows = rows
         self.cols = cols
         self.tile_size = tile_size
         self.margin = margin
+        self.move_sound = move_sound  # Sound to play when moving tiles
         self.tiles: List[List[Tile]] = []
         self.empty_pos = (rows - 1, cols - 1) # row, col of empty slot
         self._create_tiles()
@@ -104,6 +105,9 @@ class Board:
                     if (r, c) in self._neighbors(*self.empty_pos):
                         self._swap((r, c), self.empty_pos)
                         self.empty_pos = (r, c)
+                        # Play move sound if available
+                        if self.move_sound:
+                            self.move_sound.play()
                         return
 
     def shuffle(self, moves: int = 100) -> None:

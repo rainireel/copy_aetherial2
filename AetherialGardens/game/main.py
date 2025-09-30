@@ -19,9 +19,24 @@ FPS = 60
 # initialise pygame – must happen before any font, mixer, or surface use
 # ------------------------------------------------------------
 pygame.init()
+pygame.mixer.init()  # Initialize the mixer for audio
 pygame.display.set_caption(WINDOW_TITLE)
 screen = pygame.display.set_mode(WINDOW_SIZE)
 clock = pygame.time.Clock()
+
+# ------------------------------------------------------------ 
+# Load audio files if they exist
+# ------------------------------------------------------------
+try:
+    move_sound = pygame.mixer.Sound("assets/audio/move.wav")
+except pygame.error:
+    move_sound = None  # No sound file available
+
+try:
+    pygame.mixer.music.load("assets/audio/ambient.mp3")
+    pygame.mixer.music.play(-1)  # Loop indefinitely
+except pygame.error:
+    pass  # No music file available
 
 # -----------------------------------------------------------------
 # Game state flags
@@ -36,7 +51,7 @@ game_state = STATE_MENU
 
 def start_game():
     global game_state, board, hud
-    board = Board(rows=3, cols=3, tile_size=150, margin=5) # fresh scramble
+    board = Board(rows=3, cols=3, tile_size=150, margin=5, move_sound=move_sound) # fresh scramble with sound
     hud.move_count = 0
     game_state = STATE_PLAYING
 
