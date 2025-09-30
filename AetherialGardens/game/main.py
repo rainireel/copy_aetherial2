@@ -1,4 +1,4 @@
-"""game/main.py – entry point (now with extra SFX and settings)."""
+"""game/main.py – entry point (now with a Settings screen)."""
 
 import sys
 import pygame
@@ -15,13 +15,13 @@ from .audio import (
     load_music,
     play_move,
     start_ambient_loop,
-    play,                     # <-- NEW
+    play,
     set_volume,                # <-- NEW
 )
 from .save import load_progress, save_progress, star_key
 from .star import StarHUD
 from .pause import PauseMenu
-from .settings import SettingsScreen           # <-- NEW
+from .settings import SettingsScreen   # <-- NEW
 
 # -----------------------------------------------------------------
 # Constants
@@ -43,57 +43,19 @@ clock = pygame.time.Clock()
 # Audio init
 # -----------------------------------------------------------------
 init_mixer()
-_move_sfx = load_sfx()          # populates the _sounds dict
+_move_sfx = load_sfx()          # populates the internal _sounds dict
 load_music()
 start_ambient_loop()
 
 # -----------------------------------------------------------------
-# Load persisted progress (best moves + best stars per board size + audio settings)
+# Load persisted progress (now includes volume & mute)
 # -----------------------------------------------------------------
 progress = load_progress()
-
-# Apply initial audio settings from save file
-set_volume(progress.get("volume", 0.4))
+# Apply saved volume / mute on start‑up
 if progress.get("muted", False):
-    pygame.mixer.music.set_volume(0)  # Mute if needed
-    # Note: Individual SFX muting would need additional implementation
-
-# -----------------------------------------------------------------
-# UI objects (settings screen needs to be initialized after progress is loaded)
-# -----------------------------------------------------------------
-hud = HUD(pygame.Rect(0, 0, *WINDOW_SIZE), pause_cb=lambda: toggle_pause())
-star_hud = StarHUD(pygame.Rect(0, 0, *WINDOW_SIZE))
-
-# Define callbacks for the new SettingsScreen
-def get_current_volume() -> float:
-    """Return the current volume level."""
-    return progress.get("volume", 0.4)
-
-def set_current_volume(vol: float) -> None:
-    """Set the current volume level and apply to audio."""
-    progress["volume"] = vol
-    set_volume(vol)
-
-def get_current_muted() -> bool:
-    """Return the current mute state."""
-    return progress.get("muted", False)
-
-def set_current_muted(muted: bool) -> None:
-    """Set the current mute state and apply to audio."""
-    progress["muted"] = muted
-    if muted:
-        set_volume(0.0)  # Mute
-    else:
-        set_volume(progress.get("volume", 0.4))  # Restore volume
-
-settings_screen = SettingsScreen(
-    pygame.Rect(0, 0, *WINDOW_SIZE), 
-    get_volume=get_current_volume,
-    set_volume=set_current_volume,
-    get_muted=get_current_muted,
-    set_muted=set_current_muted,
-    back_cb=lambda: switch_state(STATE_MENU)
-)  # <-- NEW
+    set_volume(0.0)
+else:
+    set_volume(progress.get("volume", 0.4))
 
 # -----------------------------------------------------------------
 # Game‑state flags
@@ -102,7 +64,7 @@ STATE_MENU = "menu"
 STATE_LEVEL_SELECT = "level_select"
 STATE_PLAYING = "playing"
 STATE_PAUSED = "paused"
-STATE_SETTINGS = "settings"         # <-- NEW
+STATE_SETTINGS = "settings"      # ★‑Settings addition
 
 game_state = STATE_MENU
 selected_level = None
@@ -113,7 +75,6 @@ board = None
 # -----------------------------------------------------------------
 hud = HUD(pygame.Rect(0, 0, *WINDOW_SIZE), pause_cb=lambda: toggle_pause())
 star_hud = StarHUD(pygame.Rect(0, 0, *WINDOW_SIZE))
-# settings_screen is initialized after loading progress, so it can be set with the saved values
 
 def quit_game():
     global running
@@ -124,7 +85,6 @@ def back_to_menu():
     game_state = STATE_MENU
 
 def restart_current_level():
-    """Scramble the current board again and reset HUD."""
     global board, hud, star_hud
     if selected_level:
         board = Board(
@@ -160,12 +120,40 @@ def toggle_pause():
         game_state = STATE_PLAYING
 
 # -----------------------------------------------------------------
+# Settings screen (volume slider + mute)
+# -----------------------------------------------------------------
+def get_volume() -> float:
+    return 0.0 if progress.get("muted", False) else progress.get("volume", 0.4)
+
+def set_volume_callback(level: float) -> None:
+    # Store the new volume (but keep muted flag unchanged)
+    progress["volume"] = level
+    if not progress.get("muted", False):
+        set_volume(level)          # apply immediately
+    save_progress(progress)
+
+def toggle_mute() -> None:
+    muted = not progress.get("muted", False)
+    progress["muted"] = muted
+    set_volume(0.0 if muted else progress.get("volume", 0.4))
+    save_progress(progress)
+
+settings_screen = SettingsScreen(
+    pygame.Rect(0, 0, *WINDOW_SIZE),
+    get_volume=get_volume,
+    set_volume=set_volume_callback,
+    get_muted=lambda: progress.get("muted", False),
+    set_muted=lambda val: toggle_mute(),
+    back_cb=lambda: switch_state(STATE_MENU),
+)
+
+# -----------------------------------------------------------------
 # Menus / screens
 # -----------------------------------------------------------------
 menu = Menu(
     pygame.Rect(0, 0, *WINDOW_SIZE),
     start_cb=lambda: switch_state(STATE_LEVEL_SELECT),
-    settings_cb=lambda: switch_state(STATE_SETTINGS),
+    settings_cb=lambda: switch_state(STATE_SETTINGS),   # ★‑Settings addition
     quit_cb=quit_game,
 )
 
@@ -198,12 +186,10 @@ while running:
             menu.handle_event(event)
         elif game_state == STATE_LEVEL_SELECT:
             level_select.handle_event(event)
-        elif game_state == STATE_SETTINGS:           # <-- NEW
-            settings_screen.handle_event(event)     # <-- NEW
+        elif game_state == STATE_SETTINGS:
+            settings_screen.handle_event(event)
         elif game_state == STATE_PLAYING:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # Check if a valid move is about to be made before incrementing
-                # We need to somehow detect if the board state changed
                 # Store original empty position to compare later
                 original_empty_pos = board.empty_pos
                 
@@ -214,9 +200,8 @@ while running:
                 if board.empty_pos != original_empty_pos:
                     # A valid move was made
                     hud.increment_moves()
-                    # Play both sounds when a tile is moved
-                    play_move()          # legacy generic slide sound
-                    play("place")        # new "correct placement" sound
+                    play_move()
+                    play("place")
             hud.handle_event(event)
         elif game_state == STATE_PAUSED:
             pause_menu.handle_event(event)
@@ -231,9 +216,9 @@ while running:
         menu.draw(screen)
     elif game_state == STATE_LEVEL_SELECT:
         level_select.draw(screen)
-    elif game_state == STATE_SETTINGS:              # <-- NEW
-        settings_screen.draw(screen)               # <-- NEW
-    else:  # PLAYING or PAUSED
+    elif game_state == STATE_SETTINGS:
+        settings_screen.draw(screen)
+    else:   # PLAYING or PAUSED
         if selected_level:
             try:
                 bg = pygame.image.load(str(selected_level.bg_path)).convert()
@@ -248,27 +233,23 @@ while running:
         board.draw(screen, pygame.font.SysFont(None, 48))
         hud.draw(screen)
 
-        # --------------------------------------------------------
-        # ★‑rating – compute & display when solved (unchanged)
-        # --------------------------------------------------------
         if board.is_solved():
             rating = StarHUD.compute_rating(selected_level.rows, hud.move_count)
             star_hud.set_rating(rating)
 
             size_key = star_key(selected_level.rows)
 
-            # Best-move logic (same as before)
+            # Best‑move logic
             best_moves = progress["best_moves"].get(size_key)
             if best_moves is None or hud.move_count < best_moves:
                 progress["best_moves"][size_key] = hud.move_count
 
-            # Best-star logic
+            # Best‑star logic
             best_star = progress["best_stars"].get(size_key, 0)
             if rating > best_star:
                 progress["best_stars"][size_key] = rating
 
-            # ----- puzzle‑complete chime ----- #
-            play("complete")   # ★‑SFX addition
+            play("complete")   # ★‑SFX for puzzle solved
 
             overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 120))
@@ -288,7 +269,7 @@ while running:
     clock.tick(FPS)
 
 # ------------------------------------------------------------
-# Save progress before exiting
+# Save progress before exiting (volume, mute, best moves, stars)
 # ------------------------------------------------------------
 save_progress(progress)
 pygame.quit()
