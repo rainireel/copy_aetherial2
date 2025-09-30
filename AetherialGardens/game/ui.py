@@ -6,6 +6,9 @@ Only pygame is used; everything stays under 150 lines.
 import pygame
 from typing import Callable, Tuple
 
+# Import the audio system for UI sounds
+from .audio import play
+
 # ------------------------------------------------------------
 # Button – rectangular clickable UI element.
 # ------------------------------------------------------------
@@ -30,6 +33,7 @@ class Button:
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.rect.collidepoint(event.pos):
+                play('ui')  # Play UI click sound
                 self.callback()
 
 # ------------------------------------------------------------

@@ -9,7 +9,7 @@ from pathlib import Path
 # -----------------------------------------------------------------
 from .puzzle import Board
 from .ui import Menu, HUD, LevelSelect
-from .audio import init_mixer, load_sfx, load_music, play_move, start_ambient_loop
+from .audio import init_mixer, load_sfx, load_music, play, start_ambient_loop
 from .save import load_progress, save_progress, star_key
 from .star import StarHUD
 from .pause import PauseMenu          # <-- NEW
@@ -166,7 +166,7 @@ while running:
                 if board.empty_pos != original_empty_pos:
                     # A valid move was made
                     hud.increment_moves()
-                    play_move()
+                    play('move')
             hud.handle_event(event)
         elif game_state == STATE_PAUSED:
             # The pause overlay consumes its own events
@@ -217,6 +217,10 @@ while running:
             best_star = progress["best_stars"].get(size_key, 0)
             if rating > best_star:
                 progress["best_stars"][size_key] = rating
+            
+            # Play completion sound when puzzle is solved (with a new best score or star rating)
+            if best_moves == hud.move_count or best_star < rating:
+                play('complete')
 
             overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 120))
