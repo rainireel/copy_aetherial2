@@ -200,6 +200,19 @@ while running:
         # Draw the star HUD (always visible – shows 0 stars until solved)
         star_hud.draw(screen)
 
+        # --------------------------------------------------------
+        # Pause overlay (shows when game is paused)
+        # --------------------------------------------------------
+        if game_state == STATE_PAUSED:
+            # Semi-transparent dark overlay
+            overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 100))
+            screen.blit(overlay, (0, 0))
+            # Show "PAUSED" text
+            paused_text = pygame.font.SysFont(None, 64).render("PAUSED", True, (255, 255, 255))
+            text_rect = paused_text.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
+            screen.blit(paused_text, text_rect)
+
     pygame.display.flip()
     clock.tick(FPS)
 
