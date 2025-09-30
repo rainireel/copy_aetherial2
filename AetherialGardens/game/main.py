@@ -12,6 +12,7 @@ from .ui import Menu, HUD, LevelSelect
 from .audio import init_mixer, load_sfx, load_music, play_move, start_ambient_loop
 from .save import load_progress, save_progress, star_key
 from .star import StarHUD
+from .pause import PauseMenu
 
 # -----------------------------------------------------------------
 # Constants
@@ -96,6 +97,34 @@ def toggle_pause():
     elif game_state == STATE_PAUSED:
         game_state = STATE_PLAYING
 
+def resume_game():
+    """Resume gameplay from pause menu."""
+    global game_state
+    game_state = STATE_PLAYING
+
+def restart_level():
+    """Restart the current level with a new scrambled board."""
+    global board, hud, game_state, star_hud
+    if selected_level:
+        # Create a new board with the same settings
+        board = Board(
+            rows=selected_level.rows,
+            cols=selected_level.rows,
+            tile_size=120,
+            margin=4,
+        )
+        # Reset move counter
+        hud.move_count = 0
+        # Reset star rating display
+        star_hud.set_rating(0)
+        # Return to playing state
+        game_state = STATE_PLAYING
+
+def return_to_main_menu():
+    """Return to the main menu from pause menu."""
+    global game_state
+    game_state = STATE_MENU
+
 # -----------------------------------------------------------------
 # Menus / screens
 # -----------------------------------------------------------------
@@ -109,6 +138,14 @@ level_select = LevelSelect(
     pygame.Rect(0, 0, *WINDOW_SIZE),
     start_cb=start_game,
     back_cb=back_to_menu,
+)
+
+# Initialize the pause menu with callback functions
+pause_menu = PauseMenu(
+    pygame.Rect(0, 0, *WINDOW_SIZE),
+    resume_cb=resume_game,
+    restart_cb=restart_level,
+    main_menu_cb=return_to_main_menu,
 )
 
 def switch_state(new_state):
@@ -139,7 +176,7 @@ while running:
                     hud.increment_moves()
             hud.handle_event(event)
         elif game_state == STATE_PAUSED:
-            hud.handle_event(event)
+            pause_menu.handle_event(event)
 
     # ------------------------------------------------------------
     # Rendering
@@ -199,17 +236,10 @@ while running:
         star_hud.draw(screen)
 
         # --------------------------------------------------------
-        # Pause overlay (shows when game is paused)
+        # Pause menu (shows when game is paused)
         # --------------------------------------------------------
         if game_state == STATE_PAUSED:
-            # Semi-transparent dark overlay
-            overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 100))
-            screen.blit(overlay, (0, 0))
-            # Show "PAUSED" text
-            paused_text = pygame.font.SysFont(None, 64).render("PAUSED", True, (255, 255, 255))
-            text_rect = paused_text.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
-            screen.blit(paused_text, text_rect)
+            pause_menu.draw(screen)
 
     pygame.display.flip()
     clock.tick(FPS)
