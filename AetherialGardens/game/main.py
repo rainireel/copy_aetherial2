@@ -154,12 +154,19 @@ while running:
             level_select.handle_event(event)
         elif game_state == STATE_PLAYING:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                pre_moves = hud.move_count
+                # Check if a valid move is about to be made before incrementing
+                # We need to somehow detect if the board state changed
+                # Store original empty position to compare later
+                original_empty_pos = board.empty_pos
+                
+                # Process the click
                 board.click_at(event.pos)
-                if pre_moves != hud.move_count:
-                    play_move()
-                if pre_moves != hud.move_count:
+                
+                # If the empty position changed, it means a tile was moved
+                if board.empty_pos != original_empty_pos:
+                    # A valid move was made
                     hud.increment_moves()
+                    play_move()
             hud.handle_event(event)
         elif game_state == STATE_PAUSED:
             # The pause overlay consumes its own events
@@ -181,6 +188,8 @@ while running:
         if selected_level:
             try:
                 bg = pygame.image.load(str(selected_level.bg_path)).convert()
+                # Scale the background image to fit the entire screen
+                bg = pygame.transform.scale(bg, WINDOW_SIZE)
                 screen.blit(bg, (0, 0))
             except Exception:
                 screen.fill(BG_COLOR)
