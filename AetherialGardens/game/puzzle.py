@@ -50,14 +50,21 @@ class Board:
     def _create_tiles(self) -> None:
         """Populate self.tiles with sequential numbers, last slot = 0 (empty)."""
         self.tiles = []
+        # Calculate total board size
+        board_width = self.cols * (self.tile_size + self.margin) + self.margin
+        board_height = self.rows * (self.tile_size + self.margin) + self.margin
+        # Calculate offset to center the board in 800x600 window
+        offset_x = (800 - board_width) // 2
+        offset_y = (600 - board_height) // 2
+        
         for r in range(self.rows):
             row: List[Tile] = []
             for c in range(self.cols):
                 number = r * self.cols + c + 1
                 if (r, c) == (self.rows - 1, self.cols - 1):
                     number = 0
-                x = c * (self.tile_size + self.margin) + self.margin
-                y = r * (self.tile_size + self.margin) + self.margin
+                x = c * (self.tile_size + self.margin) + self.margin + offset_x
+                y = r * (self.tile_size + self.margin) + self.margin + offset_y
                 row.append(Tile(number, self.tile_size, (x, y)))
             self.tiles.append(row)
         self.empty_pos = (self.rows - 1, self.cols - 1)
@@ -73,15 +80,21 @@ class Board:
         r2, c2 = pos_b
         self.tiles[r1][c1], self.tiles[r2][c2] = self.tiles[r2][c2], self.tiles[r1][c1]
         # Update rect positions so they stay aligned with the grid
+        board_width = self.cols * (self.tile_size + self.margin) + self.margin
+        board_height = self.rows * (self.tile_size + self.margin) + self.margin
+        # Calculate offset to center the board in 800x600 window
+        offset_x = (800 - board_width) // 2
+        offset_y = (600 - board_height) // 2
+        
         tile_a = self.tiles[r1][c1]
         tile_b = self.tiles[r2][c2]
         tile_a.rect.topleft = (
-            c1 * (self.tile_size + self.margin) + self.margin,
-            r1 * (self.tile_size + self.margin) + self.margin,
+            c1 * (self.tile_size + self.margin) + self.margin + offset_x,
+            r1 * (self.tile_size + self.margin) + self.margin + offset_y,
         )
         tile_b.rect.topleft = (
-            c2 * (self.tile_size + self.margin) + self.margin,
-            r2 * (self.tile_size + self.margin) + self.margin,
+            c2 * (self.tile_size + self.margin) + self.margin + offset_x,
+            r2 * (self.tile_size + self.margin) + self.margin + offset_y,
         )
 
     def _neighbors(self, row: int, col: int) -> List[Tuple[int, int]]:
