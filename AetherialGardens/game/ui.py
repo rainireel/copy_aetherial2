@@ -57,7 +57,7 @@ class Menu:
         overlay.fill((0, 0, 0, 150))
         surf.blit(overlay, (0, 0))
         # Title text
-        title = self.title_font.render("Aetherial Gardens", True, (200, 230, 200))
+        title = self.title_font.render("Aetherial", True, (200, 230, 200))
         title_rect = title.get_rect(center=(surf.get_width() // 2, surf.get_height() // 3))
         surf.blit(title, title_rect)
         # Buttons
@@ -87,7 +87,7 @@ class HUD:
         # Move counter (top‑left)
         counter = self.font.render(f"Moves: {self.move_count}", True, (230, 230, 230))
         surf.blit(counter, (10, 10))
-        # Pause button (simple ► symbol)
+        # Pause button (simple II symbol)
         pygame.draw.rect(surf, (80, 100, 80), self.pause_rect, border_radius=5)
         pygame.draw.rect(surf, (30, 50, 30), self.pause_rect, 2, border_radius=5)
         pause_sym = self.font.render("II", True, (255, 255, 255))
@@ -98,3 +98,85 @@ class HUD:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.pause_rect.collidepoint(event.pos):
                 self.pause_cb()
+
+
+# ------------------------------------------------------------
+# LevelSelect – shows a button for each entry in `levels.LEVELS`.
+# ------------------------------------------------------------
+class LevelSelect:
+    """
+    UI screen that lets the player choose a garden size.
+
+    Parameters
+    ----------
+    screen_rect : pygame.Rect
+        Size of the window; used for centering the buttons.
+    start_cb : callable
+        Called with the selected ``LevelInfo`` when the player clicks a level.
+    back_cb : callable
+        Called when the player clicks the "Back" button.
+    """
+    def __init__(self, screen_rect: pygame.Rect, start_cb, back_cb):
+        # Import here to avoid circular import problems (ui → levels → ui)
+        from .levels import LEVELS
+        self.levels = LEVELS
+        self.start_cb = start_cb
+        self.back_cb = back_cb
+        self.font = pygame.font.SysFont(None, 36)
+
+        # Build a button‑like rect for each level (centered vertically)
+        btn_w, btn_h = 300, 80
+        spacing = 20
+        total_h = len(self.levels) * (btn_h + spacing) - spacing
+        start_y = (screen_rect.height - total_h) // 2
+
+        self.buttons = []          # list of (rect, LevelInfo)
+        for idx, lvl in enumerate(self.levels):
+            rect = pygame.Rect(
+                (screen_rect.width - btn_w) // 2,
+                start_y + idx * (btn_h + spacing),
+                btn_w,
+                btn_h,
+            )
+            self.buttons.append((rect, lvl))
+
+        # Back button (small rectangle at top‑left)
+        self.back_rect = pygame.Rect(10, 10, 60, 30)
+
+    def draw(self, surf: pygame.Surface) -> None:
+        # Dark translucent overlay so the menu feels distinct
+        overlay = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        surf.blit(overlay, (0, 0))
+
+        # Title
+        title = self.font.render("Select Level", True, (200, 230, 200))
+        title_rect = title.get_rect(center=(surf.get_width() // 2, 80))
+        surf.blit(title, title_rect)
+
+        # Level buttons
+        for rect, lvl in self.buttons:
+            pygame.draw.rect(surf, (70, 120, 90), rect, border_radius=8)
+            pygame.draw.rect(surf, (30, 60, 45), rect, 2, border_radius=8)
+            txt = self.font.render(lvl.name, True, (255, 255, 255))
+            txt_rect = txt.get_rect(center=rect.center)
+            surf.blit(txt, txt_rect)
+
+        # Back button
+        pygame.draw.rect(surf, (80, 40, 40), self.back_rect, border_radius=5)
+        pygame.draw.rect(surf, (30, 10, 10), self.back_rect, 2, border_radius=5)
+        back_txt = self.font.render("Back", True, (255, 255, 255))
+        back_txt_rect = back_txt.get_rect(center=self.back_rect.center)
+        surf.blit(back_txt, back_txt_rect)
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
+            return
+        # Click on a level button?
+        for rect, lvl in self.buttons:
+            if rect.collidepoint(event.pos):
+                self.start_cb(lvl)        # send LevelInfo back to main
+                return
+        # Click on Back?
+        if self.back_rect.collidepoint(event.pos):
+            self.back_cb()

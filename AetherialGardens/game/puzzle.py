@@ -1,8 +1,7 @@
 """game/puzzle.py – minimal sliding‑tile engine (MVP).
 Only standard‑library modules + pygame are used.
-All logic stays under 150 lines for easy reading/debugging.
+All logic stays under 150 lines for easy reading/debugging.
 """
-
 
 import random
 from typing import List, Tuple
@@ -14,7 +13,7 @@ import pygame
 # ------------------------------------------------------------
 class Tile:
     def __init__(self, number: int, size: int, pos: Tuple[int, int]):
-        self.number = number # 0 = empty slot
+        self.number = number          # 0 = empty slot
         self.size = size
         self.rect = pygame.Rect(pos[0], pos[1], size, size)
 
@@ -32,20 +31,20 @@ class Tile:
         txt_rect = txt.get_rect(center=self.rect.center)
         surface.blit(txt, txt_rect)
 
+
 # ------------------------------------------------------------
 # Board – holds a 2‑D list of Tiles and implements move logic.
 # ------------------------------------------------------------
 class Board:
-    def __init__(self, rows: int = 3, cols: int = 3, tile_size: int = 150, margin: int = 5, on_move_callback=None):
+    def __init__(self, rows: int = 3, cols: int = 3, tile_size: int = 150, margin: int = 5):
         self.rows = rows
         self.cols = cols
         self.tile_size = tile_size
         self.margin = margin
-        self.on_move_callback = on_move_callback  # Function to call when a move is made
         self.tiles: List[List[Tile]] = []
-        self.empty_pos = (rows - 1, cols - 1) # row, col of empty slot
+        self.empty_pos = (rows - 1, cols - 1)  # row, col of empty slot
         self._create_tiles()
-        self.shuffle(80) # default scramble depth
+        self.shuffle(80)  # default scramble depth
 
     # ------------------- private helpers -------------------
     def _create_tiles(self) -> None:
@@ -105,9 +104,6 @@ class Board:
                     if (r, c) in self._neighbors(*self.empty_pos):
                         self._swap((r, c), self.empty_pos)
                         self.empty_pos = (r, c)
-                        # Call the move callback if provided (handles both SFX and move counter)
-                        if self.on_move_callback:
-                            self.on_move_callback()
                         return
 
     def shuffle(self, moves: int = 100) -> None:

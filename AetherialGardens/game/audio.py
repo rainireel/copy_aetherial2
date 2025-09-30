@@ -2,9 +2,13 @@
 Only pygame.mixer is used; all paths are relative to the project root.
 """
 
-
 import os
 import pygame
+
+# ---------------------------------------------------------------------
+# Global variables to store loaded sounds
+# ---------------------------------------------------------------------
+_move_sfx = None
 
 # ---------------------------------------------------------------------
 # Initialise the mixer – must happen after pygame.init() but before any sound load.
@@ -12,11 +16,6 @@ import pygame
 def init_mixer():
     if not pygame.mixer.get_init():
         pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
-
-# ---------------------------------------------------------------------
-# Global variables to store loaded sounds
-# ---------------------------------------------------------------------
-_move_sfx = None
 
 # ---------------------------------------------------------------------
 # Load assets (call once at start‑up).
@@ -58,11 +57,10 @@ def load_music():
 # ---------------------------------------------------------------------
 # Public helper functions used by the game loop.
 # ---------------------------------------------------------------------
-_move_sfx: pygame.mixer.Sound = None
-
 def play_move():
+    global _move_sfx
     if _move_sfx:
         _move_sfx.play()
 
 def start_ambient_loop():
-    pygame.mixer.music.play(-1) # -1 → infinite loop
+    pygame.mixer.music.play(-1)  # -1 → infinite loop

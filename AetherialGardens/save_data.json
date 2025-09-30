@@ -1,4 +1,6 @@
 {
-  "best_moves": 46,
-  "unlocked": true
+  "unlocked": true,
+  "best_3x3": 12,
+  "best_4x4": null,
+  "best_5x5": null
 }
