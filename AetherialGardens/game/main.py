@@ -64,29 +64,36 @@ if progress.get("muted", False):
 hud = HUD(pygame.Rect(0, 0, *WINDOW_SIZE), pause_cb=lambda: toggle_pause())
 star_hud = StarHUD(pygame.Rect(0, 0, *WINDOW_SIZE))
 
-# Define callbacks for settings changes
-def on_volume_change(vol: float) -> None:
-    """Called when volume is changed in settings."""
-    set_volume(vol)  # Update actual audio volume
-    progress["volume"] = vol  # Update progress data
+# Define callbacks for the new SettingsScreen
+def get_current_volume() -> float:
+    """Return the current volume level."""
+    return progress.get("volume", 0.4)
 
-def on_mute_change(muted: bool) -> None:
-    """Called when mute is changed in settings."""
+def set_current_volume(vol: float) -> None:
+    """Set the current volume level and apply to audio."""
+    progress["volume"] = vol
+    set_volume(vol)
+
+def get_current_muted() -> bool:
+    """Return the current mute state."""
+    return progress.get("muted", False)
+
+def set_current_muted(muted: bool) -> None:
+    """Set the current mute state and apply to audio."""
+    progress["muted"] = muted
     if muted:
         set_volume(0.0)  # Mute
     else:
         set_volume(progress.get("volume", 0.4))  # Restore volume
-    progress["muted"] = muted  # Update progress data
 
 settings_screen = SettingsScreen(
     pygame.Rect(0, 0, *WINDOW_SIZE), 
-    back_cb=lambda: switch_state(STATE_MENU),
-    volume_change_cb=on_volume_change,
-    mute_change_cb=on_mute_change
+    get_volume=get_current_volume,
+    set_volume=set_current_volume,
+    get_muted=get_current_muted,
+    set_muted=set_current_muted,
+    back_cb=lambda: switch_state(STATE_MENU)
 )  # <-- NEW
-# Initialize settings screen with saved values
-settings_screen.set_volume(progress.get("volume", 0.4))
-settings_screen.set_muted(progress.get("muted", False))
 
 # -----------------------------------------------------------------
 # Game‑state flags
@@ -158,7 +165,7 @@ def toggle_pause():
 menu = Menu(
     pygame.Rect(0, 0, *WINDOW_SIZE),
     start_cb=lambda: switch_state(STATE_LEVEL_SELECT),
-    settings_cb=lambda: switch_state(STATE_SETTINGS),  # <-- NEW
+    settings_cb=lambda: switch_state(STATE_SETTINGS),
     quit_cb=quit_game,
 )
 

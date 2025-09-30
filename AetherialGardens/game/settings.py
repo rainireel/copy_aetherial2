@@ -1,137 +1,121 @@
-"""game/settings.py – volume slider and mute toggle."""
+"""game/settings.py – simple volume / mute UI.
+
+The screen draws a semi‑transparent overlay with:
+* a horizontal slider (0 % – 100 % volume)
+* a mute / un‑mute toggle button
+* a "Back" button to return to the previous state.
+"""
 
 import pygame
 from typing import Callable, Tuple
 
-
 class SettingsScreen:
-    """
-    Settings screen with volume slider and mute toggle.
-    """
-    
-    def __init__(self, screen_rect: pygame.Rect, back_cb: Callable[[], None], 
-                 volume_change_cb: Callable[[float], None] = None, 
-                 mute_change_cb: Callable[[bool], None] = None):
+    """UI that lets the player adjust audio volume and mute."""
+    def __init__(
+        self,
+        screen_rect: pygame.Rect,
+        get_volume: Callable[[], float],
+        set_volume: Callable[[float], None],
+        get_muted: Callable[[], bool],
+        set_muted: Callable[[bool], None],
+        back_cb: Callable[[], None],
+    ):
+        self.rect = screen_rect
+        self.get_volume = get_volume
+        self.set_volume = set_volume
+        self.get_muted = get_muted
+        self.set_muted = set_muted
         self.back_cb = back_cb
-        self.volume_change_cb = volume_change_cb  # Callback when volume changes
-        self.mute_change_cb = mute_change_cb     # Callback when mute changes
+
         self.font = pygame.font.SysFont(None, 36)
-        self.title_font = pygame.font.SysFont(None, 48)
-        
-        # Volume slider properties
-        self.slider_rect = pygame.Rect(0, 0, 300, 20)
-        self.slider_rect.center = (screen_rect.centerx, screen_rect.centery - 30)
-        
-        # Mute toggle properties
-        self.mute_rect = pygame.Rect(0, 0, 20, 20)
-        self.mute_rect.center = (screen_rect.centerx + 160, screen_rect.centery + 30)
-        
-        # Back button
-        back_btn_width, back_btn_height = 120, 40
-        self.back_rect = pygame.Rect(
-            screen_rect.centerx - back_btn_width // 2,
-            screen_rect.centery + 100,
-            back_btn_width,
-            back_btn_height
+        self.title_font = pygame.font.SysFont(None, 72)
+
+        # Slider geometry
+        self.slider_rect = pygame.Rect(
+            screen_rect.centerx - 150, screen_rect.centery - 20, 300, 8
         )
-        
-        # Current settings (will be set externally)
-        self.volume = 0.4
-        self.muted = False
+        self.knob_radius = 12
+        self.dragging = False
 
-    def set_volume(self, vol: float) -> None:
-        """Update the displayed volume."""
-        self.volume = max(0.0, min(1.0, vol))  # Clamp between 0 and 1
+        # Mute toggle button (small square)
+        self.mute_rect = pygame.Rect(
+            screen_rect.centerx - 30, self.slider_rect.bottom + 40, 60, 30
+        )
 
-    def set_muted(self, muted: bool) -> None:
-        """Update the mute state."""
-        self.muted = muted
-    
-    def get_volume(self) -> float:
-        """Get the current volume setting."""
-        return self.volume
-        
-    def is_muted(self) -> bool:
-        """Get the current mute setting."""
-        return self.muted
+        # Back button (bottom‑left)
+        self.back_rect = pygame.Rect(10, screen_rect.height - 50, 80, 35)
 
-    def handle_event(self, event: pygame.event.Event) -> None:
-        """Handle input events."""
-        old_volume = self.volume
-        old_muted = self.muted
-        
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            # Check if volume slider clicked
-            if self.slider_rect.collidepoint(event.pos):
-                # Calculate volume based on mouse position
-                rel_x = event.pos[0] - self.slider_rect.left
-                self.volume = max(0.0, min(1.0, rel_x / self.slider_rect.width))
-            
-            # Check if mute toggle clicked
-            elif self.mute_rect.collidepoint(event.pos):
-                self.muted = not self.muted
-                
-            # Check if back button clicked
-            elif self.back_rect.collidepoint(event.pos):
-                self.back_cb()
-
-        elif event.type == pygame.MOUSEMOTION and event.buttons[0]:  # Dragging
-            # Adjust volume while dragging on slider
-            if self.slider_rect.collidepoint(event.pos):
-                rel_x = event.pos[0] - self.slider_rect.left
-                self.volume = max(0.0, min(1.0, rel_x / self.slider_rect.width))
-        
-        # Call callbacks if values changed
-        if old_volume != self.volume and self.volume_change_cb:
-            self.volume_change_cb(self.volume)
-        if old_muted != self.muted and self.mute_change_cb:
-            self.mute_change_cb(self.muted)
-
+    # -----------------------------------------------------------------
+    # Rendering
+    # -----------------------------------------------------------------
     def draw(self, surf: pygame.Surface) -> None:
-        """Draw the settings screen."""
-        # Dark overlay background
-        overlay = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 200))
+        # Dim the whole screen
+        overlay = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
         surf.blit(overlay, (0, 0))
 
         # Title
-        title = self.title_font.render("Settings", True, (200, 230, 200))
-        title_rect = title.get_rect(center=(surf.get_width() // 2, 100))
+        title = self.title_font.render("Settings", True, (230, 230, 230))
+        title_rect = title.get_rect(center=(self.rect.centerx, self.rect.top + 70))
         surf.blit(title, title_rect)
 
         # Volume label
-        vol_label = self.font.render("Volume", True, (220, 220, 220))
-        surf.blit(vol_label, (self.slider_rect.left - 100, self.slider_rect.top - 5))
+        vol_label = self.font.render("Volume", True, (200, 200, 200))
+        vol_rect = vol_label.get_rect(midright=(self.slider_rect.left - 10, self.slider_rect.centery))
+        surf.blit(vol_label, vol_rect)
 
-        # Volume slider track
-        pygame.draw.rect(surf, (60, 80, 70), self.slider_rect)
-        pygame.draw.rect(surf, (30, 50, 40), self.slider_rect, 2)
+        # Slider line
+        pygame.draw.rect(surf, (150, 150, 150), self.slider_rect, border_radius=4)
 
-        # Volume slider thumb
-        thumb_x = self.slider_rect.left + int(self.volume * self.slider_rect.width)
-        thumb_rect = pygame.Rect(thumb_x - 5, self.slider_rect.top - 5, 10, self.slider_rect.height + 10)
-        pygame.draw.rect(surf, (100, 150, 120), thumb_rect)
-        pygame.draw.rect(surf, (70, 100, 90), thumb_rect, 2)
+        # Knob (position reflects current volume)
+        vol = self.get_volume()   # 0.0 – 1.0
+        knob_x = self.slider_rect.left + int(vol * self.slider_rect.width)
+        knob_center = (knob_x, self.slider_rect.centery)
+        pygame.draw.circle(surf, (255, 215, 0), knob_center, self.knob_radius)
+        pygame.draw.circle(surf, (30, 30, 30), knob_center, self.knob_radius, 2)
 
-        # Mute toggle
-        mute_label = self.font.render("Mute", True, (220, 220, 220))
-        surf.blit(mute_label, (self.mute_rect.left - 70, self.mute_rect.top - 5))
-        
-        # Draw mute checkbox
-        pygame.draw.rect(surf, (60, 80, 70), self.mute_rect)
-        pygame.draw.rect(surf, (30, 50, 40), self.mute_rect, 2)
-        if self.muted:
-            # Draw X in checkbox
-            pygame.draw.line(surf, (220, 100, 100), self.mute_rect.topleft, self.mute_rect.bottomright, 2)
-            pygame.draw.line(surf, (220, 100, 100), self.mute_rect.topright, self.mute_rect.bottomleft, 2)
-
-        # Draw current volume percentage
-        vol_text = self.font.render(f"{int(self.volume * 100)}%", True, (200, 220, 200))
-        surf.blit(vol_text, (self.slider_rect.right + 15, self.slider_rect.top - 5))
+        # Mute button
+        mute_txt = "Un‑mute" if self.get_muted() else "Mute"
+        pygame.draw.rect(surf, (80, 80, 120), self.mute_rect, border_radius=5)
+        pygame.draw.rect(surf, (30, 30, 60), self.mute_rect, 2, border_radius=5)
+        mute_label = self.font.render(mute_txt, True, (255, 255, 255))
+        mute_label_rect = mute_label.get_rect(center=self.mute_rect.center)
+        surf.blit(mute_label, mute_label_rect)
 
         # Back button
-        pygame.draw.rect(surf, (70, 100, 85), self.back_rect, border_radius=8)
-        pygame.draw.rect(surf, (40, 70, 55), self.back_rect, 2, border_radius=8)
-        back_text = self.font.render("Back", True, (240, 240, 240))
-        back_text_rect = back_text.get_rect(center=self.back_rect.center)
-        surf.blit(back_text, back_text_rect)
+        pygame.draw.rect(surf, (70, 90, 70), self.back_rect, border_radius=5)
+        pygame.draw.rect(surf, (30, 50, 30), self.back_rect, 2, border_radius=5)
+        back_label = self.font.render("Back", True, (255, 255, 255))
+        back_rect = back_label.get_rect(center=self.back_rect.center)
+        surf.blit(back_label, back_rect)
+
+    # -----------------------------------------------------------------
+    # Event handling
+    # -----------------------------------------------------------------
+    def handle_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.slider_rect.collidepoint(event.pos):
+                self.dragging = True
+                self._set_volume_from_mouse(event.pos)
+                return
+            if self.mute_rect.collidepoint(event.pos):
+                # Toggle mute flag
+                self.set_muted(not self.get_muted())
+                return
+            if self.back_rect.collidepoint(event.pos):
+                self.back_cb()
+                return
+
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            self.dragging = False
+
+        elif event.type == pygame.MOUSEMOTION and self.dragging:
+            self._set_volume_from_mouse(event.pos)
+
+    # -----------------------------------------------------------------
+    def _set_volume_from_mouse(self, pos: Tuple[int, int]) -> None:
+        """Convert the mouse x‑position into a 0‑1 volume level."""
+        x = max(self.slider_rect.left, min(pos[0], self.slider_rect.right))
+        rel = (x - self.slider_rect.left) / self.slider_rect.width
+        # When muted, we still update the stored volume; the mute flag stays unchanged.
+        self.set_volume(rel)

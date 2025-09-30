@@ -45,15 +45,18 @@ class Menu:
         btn_w, btn_h = 250, 60
         spacing = 20
         center_x = w // 2
+        # Start button (top)
         start_rect = pygame.Rect(0, 0, btn_w, btn_h)
-        start_rect.center = (center_x, h // 2 - spacing * 2)  # Adjust position for 3 buttons
+        start_rect.center = (center_x, h // 2 - spacing * 1.5)
+        # Settings button (middle)
         settings_rect = pygame.Rect(0, 0, btn_w, btn_h)
-        settings_rect.center = (center_x, h // 2)            # Middle button
+        settings_rect.center = (center_x, h // 2)
+        # Quit button (bottom)
         quit_rect = pygame.Rect(0, 0, btn_w, btn_h)
-        quit_rect.center = (center_x, h // 2 + spacing * 2)   # Bottom button
+        quit_rect.center = (center_x, h // 2 + spacing * 1.5)
         self.buttons = [
             Button(start_rect, "Start", start_cb),
-            Button(settings_rect, "Settings", settings_cb),  # Add settings button
+            Button(settings_rect, "Settings", settings_cb),
             Button(quit_rect, "Quit", quit_cb),
         ]
         self.title_font = pygame.font.SysFont(None, 72)
