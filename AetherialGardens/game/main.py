@@ -134,12 +134,32 @@ while running:
             # Update best‑move record if this run is better (or first).
             if progress["best_moves"] is None or hud.move_count < progress["best_moves"]:
                 progress["best_moves"] = hud.move_count
-            overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 120))
-            screen.blit(overlay, (0, 0))
-            msg = pygame.font.SysFont(None, 72).render("Puzzle solved!", True, (255, 255, 255))
-            rect = msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
-            screen.blit(msg, rect)
+                # Show new best achievement
+                overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 120))
+                screen.blit(overlay, (0, 0))
+                msg = pygame.font.SysFont(None, 72).render("Puzzle solved!", True, (255, 255, 255))
+                msg_rect = msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 40))
+                screen.blit(msg, msg_rect)
+                
+                # Show new best move achievement
+                new_best = pygame.font.SysFont(None, 36).render(f"New best: {hud.move_count} moves!", True, (255, 255, 100))
+                best_rect = new_best.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 20))
+                screen.blit(new_best, best_rect)
+            else:
+                # Show regular win screen with current best
+                overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 120))
+                screen.blit(overlay, (0, 0))
+                msg = pygame.font.SysFont(None, 72).render("Puzzle solved!", True, (255, 255, 255))
+                msg_rect = msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 20))
+                screen.blit(msg, msg_rect)
+                
+                # Show current best move count
+                if progress["best_moves"] is not None:
+                    best_msg = pygame.font.SysFont(None, 36).render(f"Best: {progress['best_moves']} moves", True, (200, 255, 200))
+                    best_rect = best_msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 30))
+                    screen.blit(best_msg, best_rect)
 
     pygame.display.flip()
     clock.tick(FPS)
