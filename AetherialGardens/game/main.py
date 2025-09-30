@@ -40,11 +40,6 @@ load_music()
 start_ambient_loop()
 
 # -----------------------------------------------------------------
-# Initialise board (3×3) – can be tweaked later via Board(rows, cols)
-# -----------------------------------------------------------------
-board = Board(rows=3, cols=3, tile_size=150, margin=5)
-
-# -----------------------------------------------------------------
 # Game state flags
 # -----------------------------------------------------------------
 STATE_MENU = "menu"
@@ -55,21 +50,7 @@ STATE_PAUSED = "paused"
 running = True
 game_state = STATE_MENU
 
-def start_game():
-    global game_state, board, hud
-    
-    def handle_move():
-        hud.increment_moves()
-        play_move()
-    
-    board = Board(rows=3, cols=3, tile_size=150, margin=5, on_move_callback=handle_move) # fresh scramble
-    hud.move_count = 0
-    game_state = STATE_PLAYING
-
-def quit_game():
-    global running
-    running = False
-
+# Define functions after global variables are set up
 def toggle_pause():
     global game_state
     if game_state == STATE_PLAYING:
@@ -77,17 +58,32 @@ def toggle_pause():
     elif game_state == STATE_PAUSED:
         game_state = STATE_PLAYING
 
+def start_game():
+    global game_state, board, hud
+    
+    def handle_move_local():
+        hud.increment_moves()
+        play_move()
+    
+    board = Board(rows=3, cols=3, tile_size=150, margin=5, on_move_callback=handle_move_local) # fresh scramble
+    hud.move_count = 0
+    game_state = STATE_PLAYING
+
+def quit_game():
+    global running
+    running = False
+
 # -----------------------------------------------------------------
 # Initialise objects that live across states
 # -----------------------------------------------------------------
-hud = HUD(pygame.Rect(0, 0, *WINDOW_SIZE), pause_cb=toggle_pause)
-menu = Menu(pygame.Rect(0, 0, *WINDOW_SIZE), start_cb=start_game, quit_cb=quit_game)
-
-# Initialize the board after HUD is created, so we can pass the move callback
 def handle_move():
     hud.increment_moves()
     play_move()
 
+hud = HUD(pygame.Rect(0, 0, *WINDOW_SIZE), pause_cb=toggle_pause)
+menu = Menu(pygame.Rect(0, 0, *WINDOW_SIZE), start_cb=start_game, quit_cb=quit_game)
+
+# Initialize the board after HUD is created, so we can pass the move callback
 board = Board(rows=3, cols=3, tile_size=150, margin=5, on_move_callback=handle_move)
 while running:
     for event in pygame.event.get():
