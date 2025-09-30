@@ -27,26 +27,22 @@ FPS = 60
 # initialise pygame – must happen before any font, mixer, or surface use
 # ------------------------------------------------------------
 pygame.init()
-init_mixer()  # Initialize the mixer through audio module
 pygame.display.set_caption(WINDOW_TITLE)
 screen = pygame.display.set_mode(WINDOW_SIZE)
 clock = pygame.time.Clock()
 
-# ------------------------------------------------------------ 
-# Load audio assets using the audio module
-# ------------------------------------------------------------
-try:
-    # Load sound effects
-    load_sfx()
-except (pygame.error, FileNotFoundError):
-    pass  # No sound file available
+# -----------------------------------------------------------------
+# Initialise audio first (must be after pygame.init())
+# -----------------------------------------------------------------
+init_mixer()
+_move_sfx = load_sfx() # store in module‑level variable
+load_music()
+start_ambient_loop()
 
-try:
-    # Load background music
-    load_music()
-    start_ambient_loop()
-except (pygame.error, FileNotFoundError):
-    pass  # No music file available
+# -----------------------------------------------------------------
+# Initialise board (3×3) – can be tweaked later via Board(rows, cols)
+# -----------------------------------------------------------------
+board = Board(rows=3, cols=3, tile_size=150, margin=5)
 
 # -----------------------------------------------------------------
 # Game state flags
@@ -79,7 +75,6 @@ def toggle_pause():
 # -----------------------------------------------------------------
 # Initialise objects that live across states
 # -----------------------------------------------------------------
-board = Board(rows=3, cols=3, tile_size=150, margin=5)
 hud = HUD(pygame.Rect(0, 0, *WINDOW_SIZE), pause_cb=toggle_pause)
 menu = Menu(pygame.Rect(0, 0, *WINDOW_SIZE), start_cb=start_game, quit_cb=quit_game)
 while running:
@@ -90,12 +85,16 @@ while running:
             menu.handle_event(event)
         elif game_state == STATE_PLAYING:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                before = board.is_solved()
+                # Record move‑state before click
+                pre_moves = hud.move_count
                 board.click_at(event.pos)
-                # Increment moves only if a tile actually moved
-                if not before and not board.is_solved():
+                # If the counter increased, a tile moved → play SFX
+                if hud.move_count != pre_moves:
+                    play_move()
+                # Increment move counter only when a tile actually moved
+                if pre_moves != hud.move_count:
                     hud.increment_moves()
-                hud.handle_event(event)
+            hud.handle_event(event)
         elif game_state == STATE_PAUSED:
             hud.handle_event(event) # allow un‑pause via button
 
