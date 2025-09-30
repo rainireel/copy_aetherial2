@@ -1,4 +1,4 @@
-"""game/main.py – entry point (now includes Level‑Select)."""
+"""game/main.py – entry point (now with star‑rating system)."""
 
 import sys
 import pygame
@@ -10,16 +10,15 @@ from pathlib import Path
 from .puzzle import Board
 from .ui import Menu, HUD, LevelSelect
 from .audio import init_mixer, load_sfx, load_music, play_move, start_ambient_loop
-from .save import load_progress, save_progress
-from .levels import LEVELS   # list of LevelInfo objects
+from .save import load_progress, save_progress, star_key
 from .star import StarHUD
 
 # -----------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------
-WINDOW_TITLE = "Aetherial"
+WINDOW_TITLE = "Aetherial Gardens – Shard of Memory"
 WINDOW_SIZE = (800, 600)
-BG_COLOR = (10, 30, 20)          # dark‑green fallback
+BG_COLOR = (10, 30, 20)          # fallback background colour
 FPS = 60
 
 # -----------------------------------------------------------------
@@ -31,7 +30,7 @@ screen = pygame.display.set_mode(WINDOW_SIZE)
 clock = pygame.time.Clock()
 
 # -----------------------------------------------------------------
-# Audio init (must be after pygame.init)
+# Audio init
 # -----------------------------------------------------------------
 init_mixer()
 _move_sfx = load_sfx()
@@ -39,9 +38,9 @@ load_music()
 start_ambient_loop()
 
 # -----------------------------------------------------------------
-# Load persisted progress (best moves per level)
+# Load persisted progress (best moves + best stars per board size)
 # -----------------------------------------------------------------
-progress = load_progress()   # dict stored in save_data.json
+progress = load_progress()   # {"best_moves": {...}, "best_stars": {...}}
 
 # -----------------------------------------------------------------
 # Game‑state flags
@@ -52,8 +51,8 @@ STATE_PLAYING = "playing"
 STATE_PAUSED = "paused"
 
 game_state = STATE_MENU
-selected_level = None   # will hold a LevelInfo once the player picks one
-board = None            # created after a level is chosen
+selected_level = None   # will hold a LevelInfo once chosen
+board = None            # created after level selection
 
 # -----------------------------------------------------------------
 # UI objects (instantiated lazily because they need callbacks)
@@ -67,6 +66,7 @@ def quit_game():
     running = False
 
 def back_to_menu():
+    """Return from Level‑Select (or from pause) to the Main Menu."""
     global game_state
     game_state = STATE_MENU
 
@@ -81,14 +81,12 @@ def start_game(level_info):
         margin=4,
     )
     hud.move_count = 0
-    star_hud.set_rating(0)  # Reset star rating display
-    
-    # Load any previously saved best for this size
-    from .save import star_key
-    size_key = star_key(level_info.rows)
-    if size_key in progress["best_moves"] and progress["best_moves"][size_key] is not None:
-        hud.move_count = progress["best_moves"][size_key]   # just for display; not a record
+    # Load any saved best‑move count for display (not a record yet)
+    key = star_key(level_info.rows)
+    if key in progress["best_moves"]:
+        hud.move_count = progress["best_moves"][key]
     game_state = STATE_PLAYING
+    star_hud.set_rating(0)   # clear any old stars
 
 def toggle_pause():
     """Switch between playing and paused."""
@@ -132,12 +130,14 @@ while running:
             level_select.handle_event(event)
         elif game_state == STATE_PLAYING:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # Record if a move actually occurred by checking board state before and after
-                board_empty_pos_before = board.empty_pos
+                # Record move count before click
+                pre_moves = hud.move_count
                 board.click_at(event.pos)
-                # If the empty position changed, a move occurred
-                if board_empty_pos_before != board.empty_pos:
+                # SFX on a successful slide
+                if pre_moves != hud.move_count:
                     play_move()
+                # Increment our HUD counter only if a tile actually moved
+                if pre_moves != hud.move_count:
                     hud.increment_moves()
             hud.handle_event(event)
         elif game_state == STATE_PAUSED:
@@ -152,59 +152,59 @@ while running:
         menu.draw(screen)
     elif game_state == STATE_LEVEL_SELECT:
         level_select.draw(screen)
-    else:   # STATE_PLAYING or STATE_PAUSED
-        # Draw the level‑specific background (if it exists)
+    else:  # PLAYING or PAUSED
+        # Draw garden background if a level is selected
         if selected_level:
             try:
-                bg_surf = pygame.image.load(str(selected_level.bg_path)).convert()
+                bg = pygame.image.load(str(selected_level.bg_path)).convert()
                 # Scale the background image to fill the entire screen
-                bg_surf = pygame.transform.scale(bg_surf, WINDOW_SIZE)
-                screen.blit(bg_surf, (0, 0))
+                bg = pygame.transform.scale(bg, WINDOW_SIZE)
+                screen.blit(bg, (0, 0))
             except Exception:
-                # fallback to plain BG_COLOR if image fails
-                screen.fill(BG_COLOR)
+                screen.fill(BG_COLOR)   # fallback
         else:
             screen.fill(BG_COLOR)
 
         board.draw(screen, pygame.font.SysFont(None, 48))
         hud.draw(screen)
-        star_hud.draw(screen)
 
+        # --------------------------------------------------------
+        # ★‑rating – compute & display when the puzzle is solved
+        # --------------------------------------------------------
         if board.is_solved():
-            # Compute star rating
+            # Compute the star rating for this board size
             rating = StarHUD.compute_rating(selected_level.rows, hud.move_count)
             star_hud.set_rating(rating)
-            
-            # Record best moves and star rating for this board size
-            from .save import star_key
+
+            # Persist best moves & best stars (if this run is better)
             size_key = star_key(selected_level.rows)
-            
-            # Update best moves if this is a new record
-            if (progress["best_moves"].get(size_key) is None) or (hud.move_count < progress["best_moves"][size_key]):
+
+            # Best‑move logic (same as before)
+            best_moves = progress["best_moves"].get(size_key)
+            if best_moves is None or hud.move_count < best_moves:
                 progress["best_moves"][size_key] = hud.move_count
-                
-            # Update best star rating if this is a new record
-            if rating > progress["best_stars"].get(size_key, 0):
+
+            # Best‑star logic
+            best_star = progress["best_stars"].get(size_key, 0)
+            if rating > best_star:
                 progress["best_stars"][size_key] = rating
 
-            # Simple “solved” overlay
+            # Solved overlay
             overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 120))
             screen.blit(overlay, (0, 0))
             msg = pygame.font.SysFont(None, 72).render("Puzzle solved!", True, (255, 255, 255))
             rect = msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
             screen.blit(msg, rect)
-            
-            # Show star rating
-            rating_msg = pygame.font.SysFont(None, 36).render(f"You earned {rating} star{'s' if rating != 1 else ''}!", True, (255, 215, 0))
-            rating_rect = rating_msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 50))
-            screen.blit(rating_msg, rating_rect)
+
+        # Draw the star HUD (always visible – shows 0 stars until solved)
+        star_hud.draw(screen)
 
     pygame.display.flip()
     clock.tick(FPS)
 
 # ------------------------------------------------------------
-# Save progress before exiting (best‑move data)
+# Save progress before exiting (best moves + best stars)
 # ------------------------------------------------------------
 save_progress(progress)
 pygame.quit()
