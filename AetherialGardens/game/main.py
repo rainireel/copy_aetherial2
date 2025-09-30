@@ -57,7 +57,12 @@ game_state = STATE_MENU
 
 def start_game():
     global game_state, board, hud
-    board = Board(rows=3, cols=3, tile_size=150, margin=5) # fresh scramble
+    
+    def handle_move():
+        hud.increment_moves()
+        play_move()
+    
+    board = Board(rows=3, cols=3, tile_size=150, margin=5, on_move_callback=handle_move) # fresh scramble
     hud.move_count = 0
     game_state = STATE_PLAYING
 
@@ -77,6 +82,13 @@ def toggle_pause():
 # -----------------------------------------------------------------
 hud = HUD(pygame.Rect(0, 0, *WINDOW_SIZE), pause_cb=toggle_pause)
 menu = Menu(pygame.Rect(0, 0, *WINDOW_SIZE), start_cb=start_game, quit_cb=quit_game)
+
+# Initialize the board after HUD is created, so we can pass the move callback
+def handle_move():
+    hud.increment_moves()
+    play_move()
+
+board = Board(rows=3, cols=3, tile_size=150, margin=5, on_move_callback=handle_move)
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -85,15 +97,7 @@ while running:
             menu.handle_event(event)
         elif game_state == STATE_PLAYING:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # Record move‑state before click
-                pre_moves = hud.move_count
-                board.click_at(event.pos)
-                # If the counter increased, a tile moved → play SFX
-                if hud.move_count != pre_moves:
-                    play_move()
-                # Increment move counter only when a tile actually moved
-                if pre_moves != hud.move_count:
-                    hud.increment_moves()
+                board.click_at(event.pos)  # This handles move counter and SFX internally
             hud.handle_event(event)
         elif game_state == STATE_PAUSED:
             hud.handle_event(event) # allow un‑pause via button
@@ -107,6 +111,15 @@ while running:
     else:
         board.draw(screen, pygame.font.SysFont(None, 48))
         hud.draw(screen)
+        # If paused, add a semi-transparent overlay
+        if game_state == STATE_PAUSED:
+            overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 100))  # Semi-transparent dark layer
+            screen.blit(overlay, (0, 0))
+            # Show "PAUSED" text
+            paused_text = pygame.font.SysFont(None, 64).render("PAUSED", True, (255, 255, 255))
+            text_rect = paused_text.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
+            screen.blit(paused_text, text_rect)
         if board.is_solved():
             overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 120))
