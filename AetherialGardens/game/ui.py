@@ -10,7 +10,7 @@ from typing import Callable, Tuple
 from .audio import play
 
 # ------------------------------------------------------------
-# Button – rectangular clickable UI element.
+# Button – rectangular clickable UI element with animations.
 # ------------------------------------------------------------
 class Button:
     def __init__(self, rect: pygame.Rect, text: str, callback: Callable[[], None],
@@ -22,10 +22,39 @@ class Button:
         self.bg_color = bg_color
         self.txt_color = txt_color
         self.font = pygame.font.SysFont(None, 48)
+        self.original_rect = rect.copy()  # Store original position for animations
+        # Animation states
+        self.is_hovered = False
+        self.is_pressed = False
+        self.hover_timer = 0  # For hover effect animation
+        self.press_timer = 0  # For press effect animation
 
     def draw(self, surf: pygame.Surface) -> None:
-        pygame.draw.rect(surf, self.bg_color, self.rect, border_radius=8)
-        pygame.draw.rect(surf, (30, 60, 45), self.rect, 2, border_radius=8)
+        # Determine colors based on hover state
+        current_bg_color = self.bg_color
+        current_border_color = (30, 60, 45)
+        
+        if self.is_hovered:
+            # Lighter green for hover
+            current_bg_color = (min(255, self.bg_color[0] + 40), 
+                               min(255, self.bg_color[1] + 40), 
+                               min(255, self.bg_color[2] + 40))
+            # Brighter border for hover
+            current_border_color = (70, 110, 85)
+        
+        # Draw button with animation effects
+        pygame.draw.rect(surf, current_bg_color, self.rect, border_radius=8)
+        pygame.draw.rect(surf, current_border_color, self.rect, 2, border_radius=8)
+        
+        # Add glow effect when hovered
+        if self.is_hovered:
+            glow_surf = pygame.Surface((self.rect.width + 10, self.rect.height + 10), pygame.SRCALPHA)
+            pygame.draw.rect(glow_surf, (*current_border_color, 100), 
+                            (5, 5, self.rect.width, self.rect.height), 
+                            border_radius=8)
+            surf.blit(glow_surf, (self.rect.x - 5, self.rect.y - 5))
+        
+        # Draw text centered
         txt_surf = self.font.render(self.text, True, self.txt_color)
         txt_rect = txt_surf.get_rect(center=self.rect.center)
         surf.blit(txt_surf, txt_rect)
@@ -33,46 +62,107 @@ class Button:
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.rect.collidepoint(event.pos):
-                play('ui')  # Play UI click sound
+                play('confirm')  # Play confirm sound
+                self.is_pressed = True
                 self.callback()
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            self.is_pressed = False
+        elif event.type == pygame.MOUSEMOTION:
+            # Check if mouse is hovering over the button
+            was_hovered = self.is_hovered
+            self.is_hovered = self.rect.collidepoint(event.pos)
+            # Play hover sound only when entering the button area
+            if self.is_hovered and not was_hovered:
+                play('hover')
+
+    def update(self, dt: float) -> None:
+        """Update animations based on time delta."""
+        # Update hover timer
+        if self.is_hovered:
+            self.hover_timer += dt
+        else:
+            self.hover_timer = 0
+            
+        # Update press timer
+        if self.is_pressed:
+            self.press_timer += dt
+        else:
+            self.press_timer = 0
+
+        # Handle press animation effect (slight inward movement)
+        if self.is_pressed:
+            # When pressed, move button slightly inward
+            pressed_offset = 2
+            self.rect = pygame.Rect(
+                self.original_rect.x + pressed_offset,
+                self.original_rect.y + pressed_offset,
+                self.original_rect.width - pressed_offset * 2,
+                self.original_rect.height - pressed_offset * 2
+            )
+        else:
+            # Reset to original position when not pressed
+            self.rect = self.original_rect.copy()
 
 # ------------------------------------------------------------
 # Menu – collection of Buttons shown before the game starts.
 # ------------------------------------------------------------
 class Menu:
-    def __init__(self, screen_rect: pygame.Rect, start_cb: Callable[[], None], settings_cb: Callable[[], None], quit_cb: Callable[[], None]):
+    def __init__(self, screen_rect: pygame.Rect, start_cb: Callable[[], None], 
+                 settings_cb: Callable[[], None], quit_cb: Callable[[], None]):
         w, h = screen_rect.size
         btn_w, btn_h = 250, 60
-        spacing = 20
-        center_x = w // 2
-        # Start button (top)
+        spacing = 50  # Proper spacing between elements
+        cx = w // 2
+        # Calculate vertical center for the entire menu block
+        total_menu_height = btn_h * 3 + spacing * 2  # 3 buttons + 2 spaces between
+        start_y = (h - total_menu_height) // 2 + 80  # Add offset to position below title
+        # Start (top)
         start_rect = pygame.Rect(0, 0, btn_w, btn_h)
-        start_rect.center = (center_x, h // 2 - spacing * 1.5)
-        # Settings button (middle)
+        start_rect.centerx = cx
+        start_rect.y = start_y
+        # Settings (middle)
         settings_rect = pygame.Rect(0, 0, btn_w, btn_h)
-        settings_rect.center = (center_x, h // 2)
-        # Quit button (bottom)
+        settings_rect.centerx = cx
+        settings_rect.y = start_y + btn_h + spacing
+        # Quit (bottom)
         quit_rect = pygame.Rect(0, 0, btn_w, btn_h)
-        quit_rect.center = (center_x, h // 2 + spacing * 1.5)
+        quit_rect.centerx = cx
+        quit_rect.y = start_y + 2 * (btn_h + spacing)
         self.buttons = [
             Button(start_rect, "Start", start_cb),
             Button(settings_rect, "Settings", settings_cb),
             Button(quit_rect, "Quit", quit_cb),
         ]
-        self.title_font = pygame.font.SysFont(None, 72)
+        self.title_font = pygame.font.SysFont(None, 80)  # Larger title
 
     def draw(self, surf: pygame.Surface) -> None:
         # Dark overlay background
         overlay = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 150))
         surf.blit(overlay, (0, 0))
-        # Title text
+        # Title text with enhanced visual hierarchy
         title = self.title_font.render("Aetherial", True, (200, 230, 200))
-        title_rect = title.get_rect(center=(surf.get_width() // 2, surf.get_height() // 3))
+        title_rect = title.get_rect(center=(surf.get_width() // 2, surf.get_height() // 4))
+        
+        # Add a subtle glow effect to the title
+        for dx in [-2, -1, 0, 1, 2]:
+            for dy in [-2, -1, 0, 1, 2]:
+                if dx != 0 or dy != 0:  # Skip the center
+                    glow = self.title_font.render("Aetherial", True, (100, 150, 120))
+                    surf.blit(glow, (title_rect.x + dx, title_rect.y + dy))
+        
         surf.blit(title, title_rect)
+        # Add a subtle line separator between title and buttons
+        line_y = title_rect.bottom + 30  # Add 30px padding between title and buttons
+        pygame.draw.line(surf, (100, 150, 120), (title_rect.left, line_y), (title_rect.right, line_y), 2)
         # Buttons
         for btn in self.buttons:
             btn.draw(surf)
+
+    def update(self, dt: float) -> None:
+        """Update animations for all buttons."""
+        for btn in self.buttons:
+            btn.update(dt)
 
     def handle_event(self, event: pygame.event.Event) -> None:
         for btn in self.buttons:
@@ -85,19 +175,26 @@ class HUD:
     def __init__(self, screen_rect: pygame.Rect, pause_cb: Callable[[], None]):
         self.move_count = 0
         self.pause_cb = pause_cb
-        # Pause button (small square in top‑right)
+        # Move counter rect (top-left with padding) - keeping the improvement
+        self.counter_rect = pygame.Rect(20, 20, 150, 40)
+        # Pause button (small square in top‑right) - back to original style
         size = 40
         self.pause_rect = pygame.Rect(screen_rect.right - size - 10, 10, size, size)
         self.font = pygame.font.SysFont(None, 36)
+        self.counter_font = pygame.font.SysFont(None, 28)
 
     def increment_moves(self) -> None:
         self.move_count += 1
 
     def draw(self, surf: pygame.Surface) -> None:
-        # Move counter (top‑left)
-        counter = self.font.render(f"Moves: {self.move_count}", True, (230, 230, 230))
-        surf.blit(counter, (10, 10))
-        # Pause button (simple II symbol)
+        # Move counter with background box (keeping the improvement)
+        pygame.draw.rect(surf, (30, 60, 45, 180), self.counter_rect, border_radius=8)
+        pygame.draw.rect(surf, (50, 90, 70), self.counter_rect, 2, border_radius=8)
+        counter = self.counter_font.render(f"Moves: {self.move_count}", True, (240, 240, 240))
+        counter_rect = counter.get_rect(center=self.counter_rect.center)
+        surf.blit(counter, counter_rect)
+        
+        # Pause button (simple II symbol - back to original style)
         pygame.draw.rect(surf, (80, 100, 80), self.pause_rect, border_radius=5)
         pygame.draw.rect(surf, (30, 50, 30), self.pause_rect, 2, border_radius=5)
         pause_sym = self.font.render("II", True, (255, 255, 255))
@@ -343,6 +440,14 @@ class LevelSelect:
         back_txt = self.small_font.render("BACK", True, (220, 240, 220))
         surf.blit(back_txt, (self.back_rect.centerx - back_txt.get_width() // 2, 
                             self.back_rect.centery - back_txt.get_height() // 2))
+
+    # -----------------------------------------------------------------
+    # Update method for animations
+    # -----------------------------------------------------------------
+    def update(self, dt: float) -> None:
+        """Update animations for level select screen."""
+        # Currently no animations, but keeping for consistency
+        pass
 
     # -----------------------------------------------------------------
     # Event handling

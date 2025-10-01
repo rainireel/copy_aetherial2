@@ -113,6 +113,12 @@ class SettingsScreen:
             self._set_volume_from_mouse(event.pos)
 
     # -----------------------------------------------------------------
+    def update(self, dt: float) -> None:
+        """Update animations for settings screen."""
+        # Currently no animations, but keeping for consistency
+        pass
+
+    # -----------------------------------------------------------------
     def _set_volume_from_mouse(self, pos: Tuple[int, int]) -> None:
         """Convert the mouse x‑position into a 0‑1 volume level."""
         x = max(self.slider_rect.left, min(pos[0], self.slider_rect.right))

@@ -22,7 +22,9 @@ def _load_sfx() -> dict[str, pygame.mixer.Sound]:
         "move": ["move.wav", "move.mp3"],
         "place": ["place.mp3", "place.wav"],
         "complete": ["complete.wav", "complete.mp3"],
-        "ui": ["ui_click.mp3", "ui_click.wav"]
+        "ui": ["ui_click.mp3", "ui_click.wav"],
+        "hover": ["hover.wav", "hover.mp3", "leaf_rustle.wav", "leaf_rustle.mp3"],  # Soft leaf rustle
+        "confirm": ["confirm.wav", "confirm.mp3", "chime.wav", "chime.mp3"]  # Magical chime
     }
     
     for key, filenames in sound_files.items():
@@ -32,7 +34,7 @@ def _load_sfx() -> dict[str, pygame.mixer.Sound]:
                 sound_path = os.path.join(base, filename)
                 sound = pygame.mixer.Sound(sound_path)
                 break  # If successful, break out of the filename loop
-            except pygame.error:
+            except (pygame.error, FileNotFoundError):
                 continue  # Try next extension
         
         if sound:
@@ -51,6 +53,19 @@ def load_sfx():
     """Public wrapper – call after `init_mixer()`."""
     global _sounds
     _sounds = _load_sfx()
+    # If hover or confirm sounds are not found, use existing sounds as fallbacks
+    if "hover" not in _sounds:
+        # Use ui sound as fallback for hover
+        if "ui" in _sounds:
+            _sounds["hover"] = _sounds["ui"]
+        elif "move" in _sounds:
+            _sounds["hover"] = _sounds["move"]
+    if "confirm" not in _sounds:
+        # Use place sound as fallback for confirm
+        if "place" in _sounds:
+            _sounds["confirm"] = _sounds["place"]
+        elif "complete" in _sounds:
+            _sounds["confirm"] = _sounds["complete"]
     return _sounds["move"]          # legacy compatibility
 
 def load_music():

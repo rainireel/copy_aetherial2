@@ -71,6 +71,14 @@ selected_level = None
 board = None
 
 # -----------------------------------------------------------------
+# Screen transition variables
+# -----------------------------------------------------------------
+transition_alpha = 255  # Start with no transition (fully visible)
+in_transition = False   # Whether a transition is currently happening
+transition_duration = 500  # Duration of transition in milliseconds
+transition_start_time = 0
+
+# -----------------------------------------------------------------
 # UI objects
 # -----------------------------------------------------------------
 hud = HUD(pygame.Rect(0, 0, *WINDOW_SIZE), pause_cb=lambda: toggle_pause())
@@ -81,8 +89,7 @@ def quit_game():
     running = False
 
 def back_to_menu():
-    global game_state
-    game_state = STATE_MENU
+    switch_state(STATE_MENU)
 
 def restart_current_level():
     global board, hud, star_hud
@@ -107,7 +114,7 @@ def start_game(level_info):
     )
     hud.move_count = 0
     key = star_key(level_info.rows)
-    if key in progress["best_moves"]:
+    if "best_moves" in progress and key in progress["best_moves"]:
         hud.move_count = progress["best_moves"][key]
     game_state = STATE_PLAYING
     star_hud.set_rating(0)
@@ -115,9 +122,9 @@ def start_game(level_info):
 def toggle_pause():
     global game_state
     if game_state == STATE_PLAYING:
-        game_state = STATE_PAUSED
+        switch_state(STATE_PAUSED)
     elif game_state == STATE_PAUSED:
-        game_state = STATE_PLAYING
+        switch_state(STATE_PLAYING)
 
 # -----------------------------------------------------------------
 # Settings screen (volume slider + mute)
@@ -127,6 +134,7 @@ def get_volume() -> float:
 
 def set_volume_callback(level: float) -> None:
     # Store the new volume (but keep muted flag unchanged)
+    progress.setdefault("volume", 0.4)
     progress["volume"] = level
     if not progress.get("muted", False):
         set_volume(level)          # apply immediately
@@ -134,6 +142,7 @@ def set_volume_callback(level: float) -> None:
 
 def toggle_mute() -> None:
     muted = not progress.get("muted", False)
+    progress.setdefault("muted", False)
     progress["muted"] = muted
     set_volume(0.0 if muted else progress.get("volume", 0.4))
     save_progress(progress)
@@ -170,15 +179,43 @@ pause_menu = PauseMenu(
     main_menu_cb=back_to_menu,
 )
 
+def start_transition():
+    """Start a fade transition."""
+    global in_transition, transition_alpha, transition_start_time
+    in_transition = True
+    transition_alpha = 0  # Start fully transparent
+    transition_start_time = pygame.time.get_ticks()
+
+def finish_transition():
+    """Complete the transition and update game state."""
+    global in_transition, transition_alpha, game_state
+    in_transition = False
+    transition_alpha = 0
+
+# Global variable for transition target state
+target_state = None
+
 def switch_state(new_state):
-    global game_state
-    game_state = new_state
+    global target_state
+    start_transition()
+    # For this implementation, we'll handle the actual state change after the transition
+    target_state = new_state
+
+def apply_state_change():
+    """Actually apply the state change after transition."""
+    global game_state, target_state
+    if target_state is not None:
+        game_state = target_state
+        target_state = None
 
 # -----------------------------------------------------------------
 # Main loop
 # -----------------------------------------------------------------
 running = True
 while running:
+    # Calculate delta time for animations
+    dt = clock.tick(FPS)
+    
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -206,6 +243,29 @@ while running:
         elif game_state == STATE_PAUSED:
             pause_menu.handle_event(event)
             hud.handle_event(event)
+
+    # Update UI components for animations
+    if game_state == STATE_MENU:
+        menu.update(dt)
+    elif game_state == STATE_LEVEL_SELECT:
+        level_select.update(dt)
+    elif game_state == STATE_SETTINGS:
+        settings_screen.update(dt)
+    elif game_state == STATE_PLAYING or game_state == STATE_PAUSED:
+        # Update HUD even when playing
+        pass  # HUD doesn't currently have animations
+
+    # Handle screen transitions
+    if in_transition:
+        elapsed = pygame.time.get_ticks() - transition_start_time
+        transition_progress = min(elapsed / transition_duration, 1.0)
+        
+        # Fade in: alpha goes from 0 to 255
+        transition_alpha = int(transition_progress * 255)
+        
+        if transition_progress >= 1.0:
+            finish_transition()
+            apply_state_change()
 
     # ------------------------------------------------------------
     # Rendering
@@ -240,14 +300,14 @@ while running:
             size_key = star_key(selected_level.rows)
 
             # Best‑move logic
-            best_moves = progress["best_moves"].get(size_key)
+            best_moves = progress.get("best_moves", {}).get(size_key)
             if best_moves is None or hud.move_count < best_moves:
-                progress["best_moves"][size_key] = hud.move_count
+                progress.setdefault("best_moves", {})[size_key] = hud.move_count
 
             # Best‑star logic
-            best_star = progress["best_stars"].get(size_key, 0)
+            best_star = progress.get("best_stars", {}).get(size_key, 0)
             if rating > best_star:
-                progress["best_stars"][size_key] = rating
+                progress.setdefault("best_stars", {})[size_key] = rating
 
             play("complete")   # ★‑SFX for puzzle solved
 
@@ -265,8 +325,13 @@ while running:
         if game_state == STATE_PAUSED:
             pause_menu.draw(screen)
 
+    # Draw transition overlay if in transition
+    if in_transition:
+        transition_overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
+        transition_overlay.fill((0, 0, 0, transition_alpha))
+        screen.blit(transition_overlay, (0, 0))
+
     pygame.display.flip()
-    clock.tick(FPS)
 
 # ------------------------------------------------------------
 # Save progress before exiting (volume, mute, best moves, stars)
