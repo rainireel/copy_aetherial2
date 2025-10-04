@@ -114,6 +114,34 @@ class Board:
                 )
                 tile.image = scaled.subsurface(sub_rect).copy()
 
+    def apply_custom_image(self, img: pygame.Surface) -> None:
+        """
+        Apply a custom image to the board tiles.
+        This is similar to apply_image but specifically for custom puzzles.
+        """
+        if not img:
+            return
+            
+        # Compute the total drawable area (without margins)
+        drawable_w = self.cols * self.tile_size
+        drawable_h = self.rows * self.tile_size
+        
+        # Scale the image to fit the board
+        scaled = pygame.transform.smoothscale(img, (drawable_w, drawable_h))
+
+        for r in range(self.rows):
+            for c in range(self.cols):
+                tile = self.tiles[r][c]
+                if tile.number == 0:
+                    continue  # skip the empty slot
+                sub_rect = pygame.Rect(
+                    c * self.tile_size,
+                    r * self.tile_size,
+                    self.tile_size,
+                    self.tile_size,
+                )
+                tile.image = scaled.subsurface(sub_rect).copy()
+
     # ------------------- public API -------------------
     def draw(self, surface: pygame.Surface, font: pygame.font.Font) -> None:
         for row in self.tiles:

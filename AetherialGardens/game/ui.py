@@ -28,26 +28,31 @@ class Button:
         self.is_pressed = False
         self.hover_timer = 0  # For hover effect animation
         self.press_timer = 0  # For press effect animation
+        # Enabled state
+        self.enabled = True
 
     def draw(self, surf: pygame.Surface) -> None:
-        # Determine colors based on hover state
-        current_bg_color = self.bg_color
-        current_border_color = (30, 60, 45)
-        
-        if self.is_hovered:
+        # Determine colors based on hover state and enabled state
+        if not self.enabled:
+            current_bg_color = (50, 50, 50)  # Gray for disabled
+            current_border_color = (30, 30, 30)
+        elif self.is_hovered:
             # Lighter green for hover
             current_bg_color = (min(255, self.bg_color[0] + 40), 
                                min(255, self.bg_color[1] + 40), 
                                min(255, self.bg_color[2] + 40))
             # Brighter border for hover
             current_border_color = (70, 110, 85)
+        else:
+            current_bg_color = self.bg_color
+            current_border_color = (30, 60, 45)
         
         # Draw button with animation effects
         pygame.draw.rect(surf, current_bg_color, self.rect, border_radius=8)
         pygame.draw.rect(surf, current_border_color, self.rect, 2, border_radius=8)
         
-        # Add glow effect when hovered
-        if self.is_hovered:
+        # Add glow effect when hovered and enabled
+        if self.is_hovered and self.enabled:
             glow_surf = pygame.Surface((self.rect.width + 10, self.rect.height + 10), pygame.SRCALPHA)
             pygame.draw.rect(glow_surf, (*current_border_color, 100), 
                             (5, 5, self.rect.width, self.rect.height), 
@@ -55,11 +60,15 @@ class Button:
             surf.blit(glow_surf, (self.rect.x - 5, self.rect.y - 5))
         
         # Draw text centered
-        txt_surf = self.font.render(self.text, True, self.txt_color)
+        txt_color = self.txt_color if self.enabled else (150, 150, 150)  # Dim text for disabled
+        txt_surf = self.font.render(self.text, True, txt_color)
         txt_rect = txt_surf.get_rect(center=self.rect.center)
         surf.blit(txt_surf, txt_rect)
 
     def handle_event(self, event: pygame.event.Event) -> None:
+        if not self.enabled:
+            return
+            
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.rect.collidepoint(event.pos):
                 play('confirm')  # Play confirm sound

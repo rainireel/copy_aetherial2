@@ -8,7 +8,7 @@ from pathlib import Path
 # Local imports
 # -----------------------------------------------------------------
 from .puzzle import Board
-from .ui import Menu, HUD, LevelSelect
+from .ui import Menu, HUD, LevelSelect, Button
 from .audio import (
     init_mixer,
     load_sfx,
@@ -22,6 +22,8 @@ from .save import load_progress, save_progress, star_key
 from .star import StarHUD
 from .pause import PauseMenu
 from .settings import SettingsScreen   # <-- NEW
+from .image_loader import ImageLoader
+from .custom_puzzle import CustomPuzzleScreen
 
 # -----------------------------------------------------------------
 # Constants
@@ -48,6 +50,10 @@ load_music()
 start_ambient_loop()
 
 # -----------------------------------------------------------------
+# Custom puzzle initialization happens after UI objects are created
+# -----------------------------------------------------------------
+
+# -----------------------------------------------------------------
 # Load persisted progress (now includes volume & mute)
 # -----------------------------------------------------------------
 progress = load_progress()
@@ -65,10 +71,12 @@ STATE_LEVEL_SELECT = "level_select"
 STATE_PLAYING = "playing"
 STATE_PAUSED = "paused"
 STATE_SETTINGS = "settings"      # ★‑Settings addition
+STATE_CUSTOM_PUZZLE = "custom_puzzle"
 
 game_state = STATE_MENU
 selected_level = None
 board = None
+custom_puzzle_screen = None
 
 # -----------------------------------------------------------------
 # Screen transition variables
@@ -118,6 +126,80 @@ def start_game(level_info):
         hud.move_count = progress["best_moves"][key]
     game_state = STATE_PLAYING
     star_hud.set_rating(0)
+
+def start_custom_game(level_info):
+    global game_state, board, selected_level, hud, star_hud
+    selected_level = level_info
+    board = Board(
+        rows=level_info["rows"],
+        cols=level_info["rows"],
+        tile_size=120,
+        margin=4,
+    )
+    
+    # Apply the custom image
+    if "custom_image" in level_info:
+        board.apply_custom_image(level_info["custom_image"])
+    
+    hud.move_count = 0
+    game_state = STATE_PLAYING
+    star_hud.set_rating(0)
+
+def init_custom_puzzle_screen():
+    global custom_puzzle_screen
+    custom_puzzle_screen = CustomPuzzleScreen(
+        pygame.Rect(0, 0, *WINDOW_SIZE),
+        back_cb=lambda: switch_state(STATE_MENU),
+        start_game_cb=start_custom_game
+    )
+    
+def update_menu_with_custom():
+    global menu
+    # Reinitialize the menu to add custom puzzle button
+    menu = Menu(
+        pygame.Rect(0, 0, *WINDOW_SIZE),
+        start_cb=lambda: switch_state(STATE_LEVEL_SELECT),
+        settings_cb=lambda: switch_state(STATE_SETTINGS),
+        quit_cb=quit_game,
+    )
+    # Add custom puzzle button
+    custom_rect = pygame.Rect(0, 0, 250, 60)
+    custom_rect.centerx = WINDOW_SIZE[0] // 2
+    # Position the custom puzzle button between the settings and quit buttons
+    # The original buttons are: Start, Settings, Quit
+    # So we need to insert the Custom Puzzle button after Settings
+    custom_button = Button(custom_rect, "Custom Puzzle", lambda: switch_state(STATE_CUSTOM_PUZZLE))
+    
+    # Instead of updating the Menu class, we'll directly modify this menu after creating it
+    # We'll reinitialize the menu with all buttons including custom puzzle
+    btn_w, btn_h = 250, 60
+    spacing = 50
+    cx = WINDOW_SIZE[0] // 2
+    start_y = (WINDOW_SIZE[1] - 4 * (btn_h + spacing)) // 2 + 80  # Adjusted for 4 buttons
+    
+    # Create new buttons with custom puzzle added
+    start_rect = pygame.Rect(0, 0, btn_w, btn_h)
+    start_rect.centerx = cx
+    start_rect.y = start_y
+    
+    settings_rect = pygame.Rect(0, 0, btn_w, btn_h)
+    settings_rect.centerx = cx
+    settings_rect.y = start_y + btn_h + spacing
+    
+    custom_rect = pygame.Rect(0, 0, btn_w, btn_h)
+    custom_rect.centerx = cx
+    custom_rect.y = start_y + 2 * (btn_h + spacing)
+    
+    quit_rect = pygame.Rect(0, 0, btn_w, btn_h)
+    quit_rect.centerx = cx
+    quit_rect.y = start_y + 3 * (btn_h + spacing)
+    
+    menu.buttons = [
+        Button(start_rect, "Start", lambda: switch_state(STATE_LEVEL_SELECT)),
+        Button(settings_rect, "Settings", lambda: switch_state(STATE_SETTINGS)),
+        Button(custom_rect, "Custom Puzzle", lambda: switch_state(STATE_CUSTOM_PUZZLE)),
+        Button(quit_rect, "Quit", quit_game),
+    ]
 
 def toggle_pause():
     global game_state
@@ -208,6 +290,48 @@ def apply_state_change():
         game_state = target_state
         target_state = None
 
+# Initialize custom puzzle screen after all functions are defined
+custom_puzzle_screen = CustomPuzzleScreen(
+    pygame.Rect(0, 0, *WINDOW_SIZE),
+    back_cb=lambda: switch_state(STATE_MENU),
+    start_game_cb=start_custom_game
+)
+
+# Add custom puzzle button to the menu
+from .ui import Button
+w, h = WINDOW_SIZE
+btn_w, btn_h = 250, 60
+spacing = 50
+cx = WINDOW_SIZE[0] // 2
+# Calculate new total height for 4 buttons instead of 3
+total_menu_height = btn_h * 4 + spacing * 3  # 4 buttons + 3 spaces
+start_y = (h - total_menu_height) // 2 + 80
+
+# Create new button positions for: Start, Settings, Custom Puzzle, Quit
+start_rect = pygame.Rect(0, 0, btn_w, btn_h)
+start_rect.centerx = cx
+start_rect.y = start_y
+
+settings_rect = pygame.Rect(0, 0, btn_w, btn_h)
+settings_rect.centerx = cx
+settings_rect.y = start_y + btn_h + spacing
+
+custom_rect = pygame.Rect(0, 0, btn_w, btn_h)
+custom_rect.centerx = cx
+custom_rect.y = start_y + 2 * (btn_h + spacing)
+
+quit_rect = pygame.Rect(0, 0, btn_w, btn_h)
+quit_rect.centerx = cx
+quit_rect.y = start_y + 3 * (btn_h + spacing)
+
+# Reconstruct the menu buttons with the custom puzzle button
+menu.buttons = [
+    Button(start_rect, "Start", lambda: switch_state(STATE_LEVEL_SELECT)),
+    Button(settings_rect, "Settings", lambda: switch_state(STATE_SETTINGS)),
+    Button(custom_rect, "Custom Puzzle", lambda: switch_state(STATE_CUSTOM_PUZZLE)),
+    Button(quit_rect, "Quit", quit_game),
+]
+
 # -----------------------------------------------------------------
 # Main loop
 # -----------------------------------------------------------------
@@ -225,6 +349,8 @@ while running:
             level_select.handle_event(event)
         elif game_state == STATE_SETTINGS:
             settings_screen.handle_event(event)
+        elif game_state == STATE_CUSTOM_PUZZLE:
+            custom_puzzle_screen.handle_event(event)
         elif game_state == STATE_PLAYING:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 # Store original empty position to compare later
@@ -251,6 +377,8 @@ while running:
         level_select.update(dt)
     elif game_state == STATE_SETTINGS:
         settings_screen.update(dt)
+    elif game_state == STATE_CUSTOM_PUZZLE:
+        custom_puzzle_screen.update(dt)
     elif game_state == STATE_PLAYING or game_state == STATE_PAUSED:
         # Update HUD even when playing
         pass  # HUD doesn't currently have animations
@@ -278,6 +406,8 @@ while running:
         level_select.draw(screen)
     elif game_state == STATE_SETTINGS:
         settings_screen.draw(screen)
+    elif game_state == STATE_CUSTOM_PUZZLE:
+        custom_puzzle_screen.draw(screen)
     else:   # PLAYING or PAUSED
         if selected_level:
             try:
