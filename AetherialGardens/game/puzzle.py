@@ -207,3 +207,20 @@ class Board:
                 if self.tiles[r][c].number != expected:
                     return False
         return True
+    
+    def get_cropped_image(self) -> pygame.Surface:
+        """Reconstruct the original cropped image from the tiles."""
+        # Create a surface to reconstruct the image
+        drawable_w = self.cols * self.tile_size
+        drawable_h = self.rows * self.tile_size
+        reconstructed = pygame.Surface((drawable_w, drawable_h))
+        
+        # Copy each tile's image to the reconstructed surface
+        for r in range(self.rows):
+            for c in range(self.cols):
+                tile = self.tiles[r][c]
+                if tile.number != 0 and tile.image:
+                    reconstructed.blit(tile.image, 
+                                     (c * self.tile_size, r * self.tile_size))
+        
+        return reconstructed

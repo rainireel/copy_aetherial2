@@ -5,3 +5,5 @@ from .levels import LEVELS, LevelInfo # noqa: F401
 from .star import StarHUD # noqa: F401
 from .image_loader import ImageLoader # noqa: F401
 from .custom_puzzle import CustomPuzzleScreen # noqa: F401
+from .cropping_tool import CroppingTool # noqa: F401
+from .gallery import Gallery, GalleryScreen # noqa: F401
