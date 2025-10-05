@@ -9,10 +9,12 @@ class CustomPuzzleScreen:
     """Screen for creating custom puzzles from user images."""
     
     def __init__(self, screen_rect: pygame.Rect, back_cb: Callable[[], None], 
-                 start_game_cb: Callable[[Dict[str, Any]], None]):
+                 start_game_cb: Callable[[Dict[str, Any]], None], 
+                 gallery_cb: Callable[[], None] = None):
         self.rect = screen_rect
         self.back_cb = back_cb
         self.start_game_cb = start_game_cb
+        self.gallery_cb = gallery_cb  # Callback to navigate to gallery
         
         self.image_loader = ImageLoader()
         self.cropping_tool = None
@@ -30,8 +32,9 @@ class CustomPuzzleScreen:
         cx, cy = self.rect.centerx, self.rect.centery
         btn_w, btn_h = 250, 60
         
-        # Main buttons
+        # Main buttons - positioned with appropriate spacing
         self.select_btn = pygame.Rect(cx - btn_w//2, cy - 100, btn_w, btn_h)
+        self.gallery_btn = pygame.Rect(cx - btn_w//2, cy - 30, btn_w, btn_h)  # Below select button
         self.back_btn = pygame.Rect(20, self.rect.height - 70, 100, 50)
     
     def _handle_select_image(self):
@@ -61,6 +64,10 @@ class CustomPuzzleScreen:
                 if self.select_btn.collidepoint(mouse_pos):
                     if self._handle_select_image():
                         return
+                
+                if self.gallery_btn.collidepoint(mouse_pos) and self.gallery_cb:
+                    self.gallery_cb()
+                    return
                 
                 if self.back_btn.collidepoint(mouse_pos):
                     self.back_cb()
@@ -94,6 +101,13 @@ class CustomPuzzleScreen:
             select_text = self.font.render("Select Image", True, (255, 255, 255))
             select_rect = select_text.get_rect(center=self.select_btn.center)
             surface.blit(select_text, select_rect)
+            
+            # Gallery button for "My Restored Memories"
+            pygame.draw.rect(surface, (90, 130, 100), self.gallery_btn)  # Slightly different color to distinguish
+            pygame.draw.rect(surface, (50, 90, 70), self.gallery_btn, 2)
+            gallery_text = self.font.render("My Restored Memories", True, (255, 255, 255))
+            gallery_rect = gallery_text.get_rect(center=self.gallery_btn.center)
+            surface.blit(gallery_text, gallery_rect)
             
             # Back button
             pygame.draw.rect(surface, (120, 100, 75), self.back_btn)

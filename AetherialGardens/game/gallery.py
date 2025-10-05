@@ -226,7 +226,7 @@ class GalleryScreen:
     def _draw_thumbnail_view(self, surface: pygame.Surface) -> None:
         """Draw the thumbnail grid view."""
         # Title
-        title = self.title_font.render("Memory Gallery", True, (200, 230, 200))
+        title = self.title_font.render("My Restored Memories", True, (200, 230, 200))
         surface.blit(title, title.get_rect(center=(self.rect.centerx, 40)))
         
         # Draw thumbnails

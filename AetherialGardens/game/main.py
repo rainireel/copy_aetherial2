@@ -301,7 +301,8 @@ def apply_state_change():
 custom_puzzle_screen = CustomPuzzleScreen(
     pygame.Rect(0, 0, *WINDOW_SIZE),
     back_cb=lambda: switch_state(STATE_MENU),
-    start_game_cb=start_custom_game
+    start_game_cb=start_custom_game,
+    gallery_cb=lambda: switch_state(STATE_GALLERY)  # Add gallery callback
 )
 
 # Initialize gallery screen after all functions are defined
@@ -313,66 +314,51 @@ gallery_screen = GalleryScreen(
 # Add gallery instance for saving
 gallery = Gallery()
 
-# Add custom puzzle button to the menu
+# Initialize the settings button as a separate UI element (it will be drawn separately)
+from .ui import Button
+settings_btn_size = 60
+menu_settings_button = Button(
+    pygame.Rect(WINDOW_SIZE[0] - settings_btn_size - 15, 15, settings_btn_size, settings_btn_size),
+    "⚙",  # Settings gear icon (using character)
+    lambda: switch_state(STATE_SETTINGS),
+    bg_color=(85, 120, 100),  # More vibrant green for better visibility
+    txt_color=(255, 255, 255),  # White text for contrast
+    image_path='assets/images/button.png'  # Use the button image (relative to working directory)
+)
+
+# Add custom puzzle button to the menu (removing Settings and Gallery from main menu)
 from .ui import Button
 w, h = WINDOW_SIZE
 btn_w, btn_h = 250, 60
-spacing = 50
+spacing = 60  # Increased spacing for better breathing room between buttons
 cx = WINDOW_SIZE[0] // 2
-# Calculate new total height for 4 buttons instead of 3
-total_menu_height = btn_h * 4 + spacing * 3  # 4 buttons + 3 spaces
-start_y = (h - total_menu_height) // 2 + 80
 
-# Create new button positions for: Start, Settings, Custom Puzzle, Quit
+# Calculate total height for 3 buttons (Start, Custom Puzzle, Quit) with consistent spacing
+total_menu_height = btn_h * 3 + spacing * 2  # 3 buttons + 2 spaces between
+start_y = (h - total_menu_height) // 2 + 100  # Adjusted offset for better vertical centering with fewer buttons
+
+# Create new button positions for: Start, Custom Puzzle, Quit
 start_rect = pygame.Rect(0, 0, btn_w, btn_h)
 start_rect.centerx = cx
 start_rect.y = start_y
 
-settings_rect = pygame.Rect(0, 0, btn_w, btn_h)
-settings_rect.centerx = cx
-settings_rect.y = start_y + btn_h + spacing
-
 custom_rect = pygame.Rect(0, 0, btn_w, btn_h)
 custom_rect.centerx = cx
-custom_rect.y = start_y + 2 * (btn_h + spacing)
+custom_rect.y = start_y + btn_h + spacing
 
 quit_rect = pygame.Rect(0, 0, btn_w, btn_h)
 quit_rect.centerx = cx
-quit_rect.y = start_y + 3 * (btn_h + spacing)
+quit_rect.y = start_y + 2 * (btn_h + spacing)
 
-# Calculate new total height for 5 buttons instead of 3 (with gallery and custom puzzle added)
-total_menu_height = btn_h * 5 + spacing * 4  # 5 buttons + 4 spaces
-start_y = (h - total_menu_height) // 2 + 80
-
-# Create new button positions for: Start, Settings, Custom Puzzle, Gallery, Quit
-start_rect = pygame.Rect(0, 0, btn_w, btn_h)
-start_rect.centerx = cx
-start_rect.y = start_y
-
-settings_rect = pygame.Rect(0, 0, btn_w, btn_h)
-settings_rect.centerx = cx
-settings_rect.y = start_y + btn_h + spacing
-
-custom_rect = pygame.Rect(0, 0, btn_w, btn_h)
-custom_rect.centerx = cx
-custom_rect.y = start_y + 2 * (btn_h + spacing)
-
-gallery_rect = pygame.Rect(0, 0, btn_w, btn_h)
-gallery_rect.centerx = cx
-gallery_rect.y = start_y + 3 * (btn_h + spacing)
-
-quit_rect = pygame.Rect(0, 0, btn_w, btn_h)
-quit_rect.centerx = cx
-quit_rect.y = start_y + 4 * (btn_h + spacing)
-
-# Reconstruct the menu buttons with all buttons
+# Reconstruct the menu buttons with reduced buttons - ensuring consistent styling
+# Make "Start" and "Quit" stand out more, and "Custom Puzzle" more subdued to indicate submenu
 menu.buttons = [
-    Button(start_rect, "Start", lambda: switch_state(STATE_LEVEL_SELECT)),
-    Button(settings_rect, "Settings", lambda: switch_state(STATE_SETTINGS)),
-    Button(custom_rect, "Custom Puzzle", lambda: switch_state(STATE_CUSTOM_PUZZLE)),
-    Button(gallery_rect, "Gallery", lambda: switch_state(STATE_GALLERY)),
-    Button(quit_rect, "Quit", quit_game),
+    Button(start_rect, "Start", lambda: switch_state(STATE_LEVEL_SELECT), bg_color=(100, 150, 120)),  # More prominent green
+    Button(custom_rect, "Custom Puzzle", lambda: switch_state(STATE_CUSTOM_PUZZLE), bg_color=(80, 120, 100)),  # More subdued green
+    Button(quit_rect, "Quit", quit_game, bg_color=(130, 100, 85)),  # Different color for quit button
 ]
+
+
 
 # -----------------------------------------------------------------
 # Main loop
@@ -387,6 +373,8 @@ while running:
             running = False
         elif game_state == STATE_MENU:
             menu.handle_event(event)
+            # Handle settings button event separately
+            menu_settings_button.handle_event(event)
         elif game_state == STATE_LEVEL_SELECT:
             level_select.handle_event(event)
         elif game_state == STATE_SETTINGS:
@@ -465,6 +453,8 @@ while running:
     # Update UI components for animations
     if game_state == STATE_MENU:
         menu.update(dt)
+        # Update settings button animations
+        menu_settings_button.update(dt)
     elif game_state == STATE_LEVEL_SELECT:
         level_select.update(dt)
     elif game_state == STATE_SETTINGS:
@@ -500,6 +490,8 @@ while running:
 
     if game_state == STATE_MENU:
         menu.draw(screen)
+        # Draw the settings button in the top-right corner
+        menu_settings_button.draw(screen)
     elif game_state == STATE_LEVEL_SELECT:
         level_select.draw(screen)
     elif game_state == STATE_SETTINGS:
@@ -578,7 +570,7 @@ while running:
                 pygame.draw.rect(screen, (70, 120, 90), save_btn_rect)
                 pygame.draw.rect(screen, (30, 60, 45), save_btn_rect, 2)
                 save_text = pygame.font.SysFont(None, 36).render(
-                    "Save to Gallery", True, (255, 255, 255)
+                    "Preserve Memory", True, (255, 255, 255)
                 )
                 save_text_rect = save_text.get_rect(center=save_btn_rect.center)
                 screen.blit(save_text, save_text_rect)
@@ -586,7 +578,7 @@ while running:
             # Show confirmation message if just saved
             if just_saved_to_gallery:
                 confirm_msg = pygame.font.SysFont(None, 36).render(
-                    "Saved to Gallery!", True, (100, 255, 100)
+                    "Memory Preserved!", True, (100, 255, 100)
                 )
                 confirm_rect = confirm_msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 120))
                 screen.blit(confirm_msg, confirm_rect)

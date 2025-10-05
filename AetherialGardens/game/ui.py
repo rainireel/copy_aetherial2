@@ -13,9 +13,10 @@ from .audio import play
 # Button – rectangular clickable UI element with animations.
 # ------------------------------------------------------------
 class Button:
-    def __init__(self, rect: pygame.Rect, text: str, callback: Callable[[], None],
+    def __init__(self, rect: pygame.Rect, text: str = None, callback: Callable[[], None] = None,
                  bg_color: Tuple[int, int, int] = (70, 120, 90),
-                 txt_color: Tuple[int, int, int] = (255, 255, 255)):
+                 txt_color: Tuple[int, int, int] = (255, 255, 255),
+                 image_path: str = None):
         self.rect = rect
         self.text = text
         self.callback = callback
@@ -30,40 +31,84 @@ class Button:
         self.press_timer = 0  # For press effect animation
         # Enabled state
         self.enabled = True
+        # Image support
+        if image_path:
+            self.image = pygame.image.load(image_path).convert_alpha()
+        else:
+            self.image = None
 
     def draw(self, surf: pygame.Surface) -> None:
         # Determine colors based on hover state and enabled state
         if not self.enabled:
             current_bg_color = (50, 50, 50)  # Gray for disabled
             current_border_color = (30, 30, 30)
+            border_width = 2
         elif self.is_hovered:
-            # Lighter green for hover
-            current_bg_color = (min(255, self.bg_color[0] + 40), 
-                               min(255, self.bg_color[1] + 40), 
-                               min(255, self.bg_color[2] + 40))
+            # Lighter green for hover with enhanced contrast
+            current_bg_color = (min(255, self.bg_color[0] + 50), 
+                               min(255, self.bg_color[1] + 50), 
+                               min(255, self.bg_color[2] + 50))
             # Brighter border for hover
-            current_border_color = (70, 110, 85)
+            current_border_color = (100, 160, 125)
+            border_width = 3  # Thicker border when hovered
         else:
             current_bg_color = self.bg_color
-            current_border_color = (30, 60, 45)
+            current_border_color = (50, 90, 70)
+            border_width = 2
         
-        # Draw button with animation effects
-        pygame.draw.rect(surf, current_bg_color, self.rect, border_radius=8)
-        pygame.draw.rect(surf, current_border_color, self.rect, 2, border_radius=8)
+        # Draw button with improved visual hierarchy and better padding
+        # Draw inner fill with slightly smaller rectangle to create internal padding
+        padding_rect = pygame.Rect(
+            self.rect.x + 4, self.rect.y + 4,  # Add 4px internal padding
+            self.rect.width - 8, self.rect.height - 8
+        )
+        pygame.draw.rect(surf, current_bg_color, padding_rect, border_radius=10)
+        # Draw border
+        pygame.draw.rect(surf, current_border_color, self.rect, border_width, border_radius=10)
         
-        # Add glow effect when hovered and enabled
+        # Add enhanced glow effect when hovered and enabled
         if self.is_hovered and self.enabled:
-            glow_surf = pygame.Surface((self.rect.width + 10, self.rect.height + 10), pygame.SRCALPHA)
-            pygame.draw.rect(glow_surf, (*current_border_color, 100), 
-                            (5, 5, self.rect.width, self.rect.height), 
-                            border_radius=8)
-            surf.blit(glow_surf, (self.rect.x - 5, self.rect.y - 5))
+            glow_surf = pygame.Surface((self.rect.width + 16, self.rect.height + 16), pygame.SRCALPHA)
+            # Create a more pronounced glow
+            for i in range(1, 6):
+                alpha = max(0, 80 - i * 15)  # Fade out effect
+                glow_color = (*current_border_color, alpha)
+                glow_rect = pygame.Rect(
+                    self.rect.x - i, self.rect.y - i,
+                    self.rect.width + 2*i, self.rect.height + 2*i
+                )
+                pygame.draw.rect(glow_surf, glow_color, glow_rect, 1, border_radius=10)
+            surf.blit(glow_surf, (self.rect.x - 8, self.rect.y - 8))
         
-        # Draw text centered
-        txt_color = self.txt_color if self.enabled else (150, 150, 150)  # Dim text for disabled
-        txt_surf = self.font.render(self.text, True, txt_color)
-        txt_rect = txt_surf.get_rect(center=self.rect.center)
-        surf.blit(txt_surf, txt_rect)
+        # Draw image or text
+        if self.image:
+            # Scale image to fit button size (keep aspect ratio)
+            img_rect = self.image.get_rect(center=self.rect.center)
+            # Scale down if larger than button
+            if img_rect.width > self.rect.width - 16 or img_rect.height > self.rect.height - 16:
+                scale = min((self.rect.width - 16) / img_rect.width, (self.rect.height - 16) / img_rect.height)
+                new_size = (int(img_rect.width * scale), int(img_rect.height * scale))
+                scaled_image = pygame.transform.scale(self.image, new_size)
+                img_rect = scaled_image.get_rect(center=self.rect.center)
+                surf.blit(scaled_image, img_rect)
+            else:
+                surf.blit(self.image, img_rect)
+        elif self.text:
+            # Draw text centered with better alignment and respect for internal padding
+            txt_color = self.txt_color if self.enabled else (150, 150, 150)  # Dim text for disabled
+            txt_surf = self.font.render(self.text, True, txt_color)
+
+            # Calculate text position to ensure it's centered within the padded area
+            txt_rect = txt_surf.get_rect()
+            txt_rect.center = self.rect.center  # Keep perfect horizontal and vertical centering
+
+            # Make sure text doesn't exceed button bounds with padding
+            if txt_rect.width > padding_rect.width - 20:  # 20px additional padding on width
+                # If text is too wide, scale it down or truncate
+                # For now, we'll ensure it fits by centering properly
+                pass
+
+            surf.blit(txt_surf, txt_rect)
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if not self.enabled:
@@ -145,25 +190,72 @@ class Menu:
         self.title_font = pygame.font.SysFont(None, 80)  # Larger title
 
     def draw(self, surf: pygame.Surface) -> None:
-        # Dark overlay background
-        overlay = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 150))
-        surf.blit(overlay, (0, 0))
-        # Title text with enhanced visual hierarchy
-        title = self.title_font.render("Aetherial", True, (200, 230, 200))
-        title_rect = title.get_rect(center=(surf.get_width() // 2, surf.get_height() // 4))
+        # Garden-themed background with subtle organic pattern
+        # Base background with garden green tones
+        base_bg = pygame.Surface(surf.get_size())
+        base_bg.fill((15, 40, 25))  # Darker garden green
         
-        # Add a subtle glow effect to the title
-        for dx in [-2, -1, 0, 1, 2]:
-            for dy in [-2, -1, 0, 1, 2]:
-                if dx != 0 or dy != 0:  # Skip the center
-                    glow = self.title_font.render("Aetherial", True, (100, 150, 120))
+        # Add subtle organic pattern for garden feel
+        for y in range(0, surf.get_height(), 30):
+            for x in range(0, surf.get_width(), 30):
+                if (x // 30 + y // 30) % 4 == 0:  # Create a subtle pattern
+                    pygame.draw.circle(base_bg, (10, 35, 20), (x, y), 2)
+        
+        surf.blit(base_bg, (0, 0))
+        
+        # Add a subtle vignette effect
+        vignette = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        vignette_size = max(surf.get_width(), surf.get_height()) * 1.2
+        vignette_surf = pygame.Surface((vignette_size, vignette_size), pygame.SRCALPHA)
+        pygame.draw.circle(vignette_surf, (0, 0, 0, 150), 
+                          (vignette_size//2, vignette_size//2), 
+                          vignette_size//2)
+        vignette_pos = (surf.get_width()//2 - vignette_size//2, 
+                        surf.get_height()//2 - vignette_size//2)
+        surf.blit(vignette_surf, vignette_pos)
+        # Title text with enhanced visual hierarchy and garden theme
+        title = self.title_font.render("Aetherial Gardens", True, (245, 252, 235))  # Brighter almost-white text with slight green tint
+        title_rect = title.get_rect(center=(surf.get_width() // 2, surf.get_height() // 4 - 30))  # Adjusted position
+        
+        # Enhanced glow effect for better readability with garden theme
+        for dx in [-4, -3, -2, -1, 1, 2, 3, 4]:
+            for dy in [-4, -3, -2, -1, 1, 2, 3, 4]:
+                if abs(dx) + abs(dy) <= 4:  # Create a circular glow pattern
+                    glow = self.title_font.render("Aetherial Gardens", True, (60, 90, 70, 80))  # Garden green glow with transparency
                     surf.blit(glow, (title_rect.x + dx, title_rect.y + dy))
         
+        # Subtle highlight effect
+        highlight = self.title_font.render("Aetherial Gardens", True, (180, 220, 190, 100))  # Light green highlight
+        surf.blit(highlight, (title_rect.x - 1, title_rect.y - 1))
+        
         surf.blit(title, title_rect)
-        # Add a subtle line separator between title and buttons
-        line_y = title_rect.bottom + 30  # Add 30px padding between title and buttons
-        pygame.draw.line(surf, (100, 150, 120), (title_rect.left, line_y), (title_rect.right, line_y), 2)
+        
+        # Subtitle for "Shard of Memory" with more garden-like styling
+        subtitle_font = pygame.font.SysFont(None, 32)  # Slightly smaller font for subtitle
+        subtitle = subtitle_font.render("- Shard of Memory -", True, (190, 230, 170))  # Garden-themed green-tinged color
+        subtitle_rect = subtitle.get_rect(center=(surf.get_width() // 2, surf.get_height() // 4 + 15))  # Closer to main title
+        
+        # Subtle glow for subtitle with garden theme
+        for dx in [-2, -1, 1, 2]:
+            for dy in [-2, -1, 1, 2]:
+                sub_glow = subtitle_font.render("- Shard of Memory -", True, (50, 80, 60, 70))
+                surf.blit(sub_glow, (subtitle_rect.x + dx, subtitle_rect.y + dy))
+        
+        surf.blit(subtitle, subtitle_rect)
+        
+        # Add decorative elements - small garden-style icons near the title
+        # Left side decoration
+        left_decor_x = surf.get_width() // 2 - title_rect.width // 2 - 30
+        right_decor_x = surf.get_width() // 2 + title_rect.width // 2 + 10
+        decor_y = surf.get_height() // 4 - 25
+        
+        # Draw small vine-like decorations
+        for i in range(3):
+            # Left decoration
+            pygame.draw.circle(surf, (80, 150, 70), (left_decor_x, decor_y + i*15), 4)
+            # Right decoration 
+            pygame.draw.circle(surf, (80, 150, 70), (right_decor_x, decor_y + i*15), 4)
+        
         # Buttons
         for btn in self.buttons:
             btn.draw(surf)
