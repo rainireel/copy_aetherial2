@@ -509,47 +509,32 @@ while running:
         board.draw(screen, pygame.font.SysFont(None, 48))
         hud.draw(screen)
 
-        if board.is_solved():
-            # Handle both dict and object formats for selected_level
+        if board.is_solved() and game_state != STATE_WIN:
+            play("complete")
             rows_value = selected_level["rows"] if isinstance(selected_level, dict) else selected_level.rows
             rating = StarHUD.compute_rating(rows_value, hud.move_count)
             star_hud.set_rating(rating)
-
             size_key = star_key(rows_value)
-
-            # Best‑move logic
             best_moves = progress.get("best_moves", {}).get(size_key)
             if best_moves is None or hud.move_count < best_moves:
                 progress.setdefault("best_moves", {})[size_key] = hud.move_count
-
-            # Best‑star logic
             best_star = progress.get("best_stars", {}).get(size_key, 0)
             if rating > best_star:
                 progress.setdefault("best_stars", {})[size_key] = rating
 
-            # Get the cropped image for the win screen
-            cropped_image = board.get_cropped_image()
-            
-            # Switch to win screen if we have a cropped image (custom puzzle) and it's solved
-            should_show_win_screen = False
-            if cropped_image:
-                # Check if this is a custom puzzle by checking if selected_level has custom_image
-                if isinstance(selected_level, dict) and 'custom_image' in selected_level:
-                    should_show_win_screen = True
-                elif hasattr(selected_level, 'custom_image'):
-                    should_show_win_screen = True
-            
-            if should_show_win_screen:
-                # Create and show win screen
-                win_screen = WinScreen(
-                    pygame.Rect(0, 0, *WINDOW_SIZE),
-                    cropped_image,
-                    selected_level["rows"] if isinstance(selected_level, dict) else selected_level.rows,
-                    hud.move_count,
-                    back_to_menu_cb=lambda: switch_state(STATE_CUSTOM_PUZZLE),  # Back to Loom Main Menu
-                    weave_another_cb=lambda: switch_state(STATE_CUSTOM_PUZZLE)  # Weave Another also goes to Loom Main Menu
-                )
-                switch_state(STATE_WIN)
+            is_custom = isinstance(selected_level, dict) and 'custom_image' in selected_level
+            if is_custom:
+                cropped_image = board.get_cropped_image()
+                if cropped_image:
+                    win_screen = WinScreen(
+                        screen.get_rect(),
+                        cropped_image,
+                        rows_value,
+                        hud.move_count,
+                        back_to_menu_cb=back_to_menu,
+                        weave_another_cb=lambda: switch_state(STATE_CUSTOM_PUZZLE)
+                    )
+                    switch_state(STATE_WIN)
 
         star_hud.draw(screen)
 
