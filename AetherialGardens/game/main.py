@@ -112,12 +112,28 @@ def back_to_menu():
 def restart_current_level():
     global board, hud, star_hud
     if selected_level:
-        board = Board(
-            rows=selected_level.rows,
-            cols=selected_level.rows,
-            tile_size=120,
-            margin=4,
-        )
+        # Handle both dict and object formats for selected_level
+        if isinstance(selected_level, dict):
+            # For custom puzzles: don't shuffle initially, apply image, then shuffle
+            board = Board(
+                rows=selected_level["rows"],
+                cols=selected_level["rows"], 
+                tile_size=120,
+                margin=4,
+                is_preview=True  # Don't shuffle in constructor
+            )
+            # Apply custom image and then shuffle if it's a custom puzzle
+            if "custom_image" in selected_level:
+                board.apply_custom_image(selected_level["custom_image"])
+                board.shuffle(80)  # Manually shuffle after applying image
+        else:
+            # For regular puzzles: create and shuffle normally
+            board = Board(
+                rows=selected_level.rows,
+                cols=selected_level.rows,
+                tile_size=120,
+                margin=4,
+            )
         hud.move_count = 0
         star_hud.set_rating(0)
 
@@ -140,16 +156,21 @@ def start_game(level_info):
 def start_custom_game(level_info):
     global game_state, board, selected_level, hud, star_hud
     selected_level = level_info
+    # Create the board without shuffling initially
     board = Board(
         rows=level_info["rows"],
         cols=level_info["rows"],
         tile_size=120,
         margin=4,
+        is_preview=True  # Don't shuffle in constructor
     )
     
-    # Apply the custom image
+    # Apply the custom image to the tiles in their initial positions
     if "custom_image" in level_info:
         board.apply_custom_image(level_info["custom_image"])
+    
+    # Now shuffle the board to create the puzzle
+    board.shuffle(80)
     
     hud.move_count = 0
     game_state = STATE_PLAYING
@@ -489,10 +510,12 @@ while running:
         hud.draw(screen)
 
         if board.is_solved():
-            rating = StarHUD.compute_rating(selected_level.rows, hud.move_count)
+            # Handle both dict and object formats for selected_level
+            rows_value = selected_level["rows"] if isinstance(selected_level, dict) else selected_level.rows
+            rating = StarHUD.compute_rating(rows_value, hud.move_count)
             star_hud.set_rating(rating)
 
-            size_key = star_key(selected_level.rows)
+            size_key = star_key(rows_value)
 
             # Best‑move logic
             best_moves = progress.get("best_moves", {}).get(size_key)
