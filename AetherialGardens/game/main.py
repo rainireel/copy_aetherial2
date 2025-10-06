@@ -26,6 +26,7 @@ from .image_loader import ImageLoader
 from .custom_puzzle import CustomPuzzleScreen
 from .cropping_tool import CroppingTool
 from .gallery import Gallery, GalleryScreen  # <-- NEW
+from .win_screen import WinScreen  # Win/restoration screen
 
 # -----------------------------------------------------------------
 # Constants
@@ -76,6 +77,7 @@ STATE_SETTINGS = "settings"      # ★‑Settings addition
 STATE_CUSTOM_PUZZLE = "custom_puzzle"
 STATE_CROPPING = "cropping"
 STATE_GALLERY = "gallery"  # <-- NEW
+STATE_WIN = "win"  # Win/restoration screen
 
 game_state = STATE_MENU
 selected_level = None
@@ -84,6 +86,7 @@ custom_puzzle_screen = None
 cropping_tool = None
 gallery_screen = None  # <-- NEW
 just_saved_to_gallery = False  # <-- NEW: Track if we just saved to gallery
+win_screen = None  # Win screen instance
 
 # -----------------------------------------------------------------
 # Screen transition variables
@@ -300,9 +303,9 @@ def apply_state_change():
 # Initialize custom puzzle screen after all functions are defined
 custom_puzzle_screen = CustomPuzzleScreen(
     pygame.Rect(0, 0, *WINDOW_SIZE),
-    back_cb=lambda: switch_state(STATE_MENU),
+    back_cb=lambda: switch_state(STATE_MENU),  # Back from Custom Puzzle goes to main menu
     start_game_cb=start_custom_game,
-    gallery_cb=lambda: switch_state(STATE_GALLERY)  # Add gallery callback
+    gallery_cb=lambda: switch_state(STATE_GALLERY)  # Gallery callback
 )
 
 # Initialize gallery screen after all functions are defined
@@ -314,6 +317,9 @@ gallery_screen = GalleryScreen(
 # Add gallery instance for saving
 gallery = Gallery()
 
+# Initialize win screen after all functions are defined
+win_screen = None
+
 # Initialize the settings button as a separate UI element (it will be drawn separately)
 from .ui import Button
 settings_btn_size = 60
@@ -323,7 +329,7 @@ menu_settings_button = Button(
     lambda: switch_state(STATE_SETTINGS),
     bg_color=(85, 120, 100),  # More vibrant green for better visibility
     txt_color=(255, 255, 255),  # White text for contrast
-    image_path='AetherialGardens/assets/images/button.png'  # Use the button image (relative to working directory)
+    image_path='assets/images/button.png'  # Use the button image (relative to working directory)
 )
 
 # Add custom puzzle button to the menu (removing Settings and Gallery from main menu)
@@ -386,65 +392,23 @@ while running:
                 cropping_tool.handle_event(event)
         elif game_state == STATE_GALLERY:  # <-- NEW
             gallery_screen.handle_event(event)
+        elif game_state == STATE_WIN:
+            if win_screen:
+                win_screen.handle_event(event)
         elif game_state == STATE_PLAYING:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # Check if puzzle is solved and save button is clicked
-                cropped_image = board.get_cropped_image()
-                should_show_save = False
-                if cropped_image:
-                    # Check if this is a custom puzzle by checking if selected_level has custom_image
-                    if isinstance(selected_level, dict) and 'custom_image' in selected_level:
-                        should_show_save = True
-                    elif hasattr(selected_level, 'custom_image'):
-                        should_show_save = True
+                # Store original empty position to compare later
+                original_empty_pos = board.empty_pos
                 
-                if board.is_solved() and should_show_save:
-                    # Create save button rect to check collision
-                    save_btn_rect = pygame.Rect(
-                        WINDOW_SIZE[0]//2 - 100, 
-                        WINDOW_SIZE[1]//2 + 50, 
-                        200, 50
-                    )
-                    
-                    if save_btn_rect.collidepoint(event.pos):
-                        # Save to gallery
-                        rating = StarHUD.compute_rating(selected_level.rows, hud.move_count)
-                        gallery.save_memory(
-                            cropped_image, 
-                            selected_level["rows"] if isinstance(selected_level, dict) else selected_level.rows, 
-                            hud.move_count, 
-                            rating
-                        )
-                        # Set flag to show confirmation in next draw cycle
-                        # Since just_saved_to_gallery is already declared in the global scope,
-                        # we just need to set its value here
-                        just_saved_to_gallery = True
-                    else:
-                        # Store original empty position to compare later
-                        original_empty_pos = board.empty_pos
-                        
-                        # Process the click
-                        board.click_at(event.pos)
-                        
-                        # If the empty position changed, it means a tile was moved
-                        if board.empty_pos != original_empty_pos:
-                            # A valid move was made
-                            hud.increment_moves()
-                            play_move()
-                            play("place")
-                else:
-                    # Store original empty position to compare later
-                    original_empty_pos = board.empty_pos
-                    
-                    # Process the click
-                    board.click_at(event.pos)
-                    
-                    # If the empty position changed, it means a tile was moved
-                    if board.empty_pos != original_empty_pos:
-                        # A valid move was made
-                        hud.increment_moves()
-                        play_move()
-                        play("place")
+                # Process the click
+                board.click_at(event.pos)
+                
+                # If the empty position changed, it means a tile was moved
+                if board.empty_pos != original_empty_pos:
+                    # A valid move was made
+                    hud.increment_moves()
+                    play_move()
+                    play("place")
             hud.handle_event(event)
         elif game_state == STATE_PAUSED:
             pause_menu.handle_event(event)
@@ -467,6 +431,9 @@ while running:
     elif game_state == STATE_GALLERY:  # <-- NEW
         # Gallery screen doesn't have animations, so no update needed
         pass
+    elif game_state == STATE_WIN:
+        if win_screen:
+            win_screen.update(dt)
     elif game_state == STATE_PLAYING or game_state == STATE_PAUSED:
         # Update HUD even when playing
         pass  # HUD doesn't currently have animations
@@ -503,6 +470,9 @@ while running:
             cropping_tool.draw(screen)
     elif game_state == STATE_GALLERY:  # <-- NEW
         gallery_screen.draw(screen)
+    elif game_state == STATE_WIN:
+        if win_screen:
+            win_screen.draw(screen)
     else:   # PLAYING or PAUSED
         if selected_level:
             try:
@@ -518,13 +488,6 @@ while running:
         board.draw(screen, pygame.font.SysFont(None, 48))
         hud.draw(screen)
 
-        # Define save button rect here so both drawing and event handling can access it
-        save_btn_rect = pygame.Rect(
-            WINDOW_SIZE[0]//2 - 100, 
-            WINDOW_SIZE[1]//2 + 50, 
-            200, 50
-        )
-        
         if board.is_solved():
             rating = StarHUD.compute_rating(selected_level.rows, hud.move_count)
             star_hud.set_rating(rating)
@@ -541,49 +504,29 @@ while running:
             if rating > best_star:
                 progress.setdefault("best_stars", {})[size_key] = rating
 
-            play("complete")   # SFX for puzzle solved
-
-            # Get the cropped image for saving
+            # Get the cropped image for the win screen
             cropped_image = board.get_cropped_image()
             
-            # Draw completion overlay
-            overlay = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 120))
-            screen.blit(overlay, (0, 0))
-            
-            msg = pygame.font.SysFont(None, 72).render(
-                "Puzzle solved!", True, (255, 255, 255)
-            )
-            msg_rect = msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 50))
-            screen.blit(msg, msg_rect)
-            
-            # Draw save button if we have a cropped image and it's a custom puzzle
-            should_show_save = False
+            # Switch to win screen if we have a cropped image (custom puzzle) and it's solved
+            should_show_win_screen = False
             if cropped_image:
                 # Check if this is a custom puzzle by checking if selected_level has custom_image
                 if isinstance(selected_level, dict) and 'custom_image' in selected_level:
-                    should_show_save = True
+                    should_show_win_screen = True
                 elif hasattr(selected_level, 'custom_image'):
-                    should_show_save = True
+                    should_show_win_screen = True
             
-            if should_show_save:
-                pygame.draw.rect(screen, (70, 120, 90), save_btn_rect)
-                pygame.draw.rect(screen, (30, 60, 45), save_btn_rect, 2)
-                save_text = pygame.font.SysFont(None, 36).render(
-                    "Preserve Memory", True, (255, 255, 255)
+            if should_show_win_screen:
+                # Create and show win screen
+                win_screen = WinScreen(
+                    pygame.Rect(0, 0, *WINDOW_SIZE),
+                    cropped_image,
+                    selected_level["rows"] if isinstance(selected_level, dict) else selected_level.rows,
+                    hud.move_count,
+                    back_to_menu_cb=lambda: switch_state(STATE_CUSTOM_PUZZLE),  # Back to Loom Main Menu
+                    weave_another_cb=lambda: switch_state(STATE_CUSTOM_PUZZLE)  # Weave Another also goes to Loom Main Menu
                 )
-                save_text_rect = save_text.get_rect(center=save_btn_rect.center)
-                screen.blit(save_text, save_text_rect)
-            
-            # Show confirmation message if just saved
-            if just_saved_to_gallery:
-                confirm_msg = pygame.font.SysFont(None, 36).render(
-                    "Memory Preserved!", True, (100, 255, 100)
-                )
-                confirm_rect = confirm_msg.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 120))
-                screen.blit(confirm_msg, confirm_rect)
-                # Reset the flag after showing the message
-                just_saved_to_gallery = False
+                switch_state(STATE_WIN)
 
         star_hud.draw(screen)
 

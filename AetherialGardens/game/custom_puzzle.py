@@ -87,25 +87,25 @@ class CustomPuzzleScreen:
             # Draw the initial screen
             surface.fill((10, 30, 20))
             
-            # Title
-            title = self.title_font.render("Custom Puzzle", True, (200, 230, 200))
+            # Title - should reflect "Loom Main Menu" per the user flow
+            title = self.title_font.render("Loom Main Menu", True, (200, 230, 200))
             surface.blit(title, title.get_rect(center=(self.rect.centerx, 80)))
             
             # Status
             status_surf = self.font.render(self.status, True, (180, 200, 180))
             surface.blit(status_surf, status_surf.get_rect(center=(self.rect.centerx, 140)))
             
-            # Select button
+            # Select button - should say "SELECT IMAGE" per requirements
             pygame.draw.rect(surface, (70, 120, 90), self.select_btn)
             pygame.draw.rect(surface, (30, 60, 45), self.select_btn, 2)
-            select_text = self.font.render("Select Image", True, (255, 255, 255))
+            select_text = self.font.render("SELECT IMAGE", True, (255, 255, 255))
             select_rect = select_text.get_rect(center=self.select_btn.center)
             surface.blit(select_text, select_rect)
             
-            # Gallery button for "My Restored Memories"
+            # Gallery button for "My Restored Memories" - should match requirements exactly
             pygame.draw.rect(surface, (90, 130, 100), self.gallery_btn)  # Slightly different color to distinguish
             pygame.draw.rect(surface, (50, 90, 70), self.gallery_btn, 2)
-            gallery_text = self.font.render("My Restored Memories", True, (255, 255, 255))
+            gallery_text = self.font.render("MY Restored Memories", True, (255, 255, 255))
             gallery_rect = gallery_text.get_rect(center=self.gallery_btn.center)
             surface.blit(gallery_text, gallery_rect)
             

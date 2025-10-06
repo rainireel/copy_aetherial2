@@ -64,10 +64,14 @@ class Gallery:
         filename = f"memory_{timestamp}_{unique_id}.png"
         filepath = os.path.join(self.gallery_dir, filename)
         
-        # Save the image
-        pygame.image.save(image, filepath)
+        try:
+            # Save the image using pygame.image.save()
+            pygame.image.save(image, filepath)
+        except Exception as e:
+            print(f"Error saving image to {filepath}: {e}")
+            raise e  # Re-raise to handle in calling function
         
-        # Add to gallery data
+        # Add to gallery data with JSON file management
         memory_entry = {
             "filename": filename,
             "puzzle_size": puzzle_size,
@@ -82,14 +86,40 @@ class Gallery:
         return filename
     
     def get_memories(self) -> List[Dict]:
-        """Get all saved memories."""
-        return self.gallery_data.get("memories", [])
+        """Get all saved memories with proper JSON file management, removing any entries with missing files."""
+        # Load from JSON file (implementing JSON file management)
+        memories = self.gallery_data.get("memories", [])
+        
+        # Filter out memories with missing files
+        valid_memories = []
+        for memory in memories:
+            filepath = os.path.join(self.gallery_dir, memory["filename"])
+            if os.path.isfile(filepath):
+                valid_memories.append(memory)
+            else:
+                # File is missing, remove from gallery data (JSON management)
+                print(f"Missing file: {filepath}, removing from gallery")
+        
+        # Update the gallery data if any files were missing (JSON management)
+        if len(valid_memories) != len(memories):
+            self.gallery_data["memories"] = valid_memories
+            self._save_gallery_data()
+        
+        return valid_memories
+    
+    def refresh_gallery(self) -> None:
+        """Refresh gallery data by reloading from JSON file."""
+        self.gallery_data = self._load_gallery_data()
     
     def get_memory_image(self, filename: str) -> Optional[pygame.Surface]:
         """Load a memory image by filename."""
         filepath = os.path.join(self.gallery_dir, filename)
         if os.path.isfile(filepath):
-            return pygame.image.load(filepath).convert_alpha()
+            try:
+                return pygame.image.load(filepath).convert_alpha()
+            except pygame.error:
+                print(f"Error loading image: {filepath}")
+                return None
         return None
     
     def delete_memory(self, filename: str) -> bool:
@@ -157,18 +187,26 @@ class GalleryScreen:
         self._load_thumbnails()
     
     def _load_thumbnails(self) -> None:
-        """Load all memory thumbnails."""
+        """Load all memory thumbnails with gallery display functionality."""
         self.thumbnails = []
         memories = self.gallery.get_memories()
         
-        for memory in memories:
+        # Sort memories by date, most recent first - JSON file management
+        sorted_memories = sorted(memories, key=lambda m: m.get("date", ""), reverse=True)
+        
+        for memory in sorted_memories:
+            # Read JSON, load images, scale to thumbnails, blit to screen
             image = self.gallery.get_memory_image(memory["filename"])
             if image:
-                # Scale image to thumbnail size
-                thumbnail = pygame.transform.scale(image, (self.thumbnail_size, self.thumbnail_size))
-                self.thumbnails.append((thumbnail, memory))
+                try:
+                    # Scale to thumbnail size for efficient display
+                    thumbnail = pygame.transform.scale(image, (self.thumbnail_size, self.thumbnail_size))
+                    self.thumbnails.append((thumbnail, memory))
+                except Exception as e:
+                    print(f"Error creating thumbnail for {memory['filename']}: {e}")
+                    continue
         
-        # Calculate max scroll
+        # Calculate max scroll for gallery display
         rows = (len(self.thumbnails) + self.thumbnails_per_row - 1) // self.thumbnails_per_row
         total_height = rows * (self.thumbnail_size + self.thumbnail_margin) + 100  # 100 for title and padding
         self.max_scroll = max(0, total_height - self.rect.height)
@@ -180,11 +218,14 @@ class GalleryScreen:
                 if self.fullscreen_back_btn.collidepoint(event.pos):
                     self.viewing_fullscreen = False
                 elif self.delete_btn.collidepoint(event.pos) and self.selected_memory:
-                    # Delete the selected memory
+                    # Delete the selected memory with confirmation
                     if self.gallery.delete_memory(self.selected_memory["filename"]):
                         self.selected_memory = None
                         self.viewing_fullscreen = False
                         self._load_thumbnails()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.viewing_fullscreen = False
             return
         
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -213,6 +254,10 @@ class GalleryScreen:
         elif event.type == pygame.MOUSEWHEEL:
             # Handle scrolling
             self.scroll_y = max(0, min(self.scroll_y - event.y * 20, self.max_scroll))
+        
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                self.back_cb()
     
     def draw(self, surface: pygame.Surface) -> None:
         """Draw the gallery screen."""
@@ -253,10 +298,10 @@ class GalleryScreen:
             info_surf = self.small_font.render(info_text, True, (180, 200, 180))
             surface.blit(info_surf, (x, y + self.thumbnail_size + 5))
         
-        # Draw back button
+        # Draw back button - should go back to Loom Main Menu per requirements
         pygame.draw.rect(surface, (120, 100, 75), self.back_btn)
         pygame.draw.rect(surface, (85, 65, 45), self.back_btn, 2)
-        back_text = self.font.render("Back", True, (255, 255, 255))
+        back_text = self.font.render("Back to Loom Menu", True, (255, 255, 255))
         back_rect = back_text.get_rect(center=self.back_btn.center)
         surface.blit(back_text, back_rect)
         
@@ -275,19 +320,46 @@ class GalleryScreen:
         # Load the full image
         image = self.gallery.get_memory_image(self.selected_memory["filename"])
         if not image:
+            # Display error message if image can't be loaded
+            surface.fill((10, 30, 20))
+            error_text = self.title_font.render("Image not found", True, (200, 100, 100))
+            error_rect = error_text.get_rect(center=self.rect.center)
+            surface.blit(error_text, error_rect)
+            
+            # Draw back button
+            pygame.draw.rect(surface, (120, 100, 75), self.fullscreen_back_btn)
+            pygame.draw.rect(surface, (85, 65, 45), self.fullscreen_back_btn, 2)
+            back_text = self.font.render("Back", True, (255, 255, 255))
+            back_rect = back_text.get_rect(center=self.fullscreen_back_btn.center)
+            surface.blit(back_text, back_rect)
             return
         
-        # Scale image to fit screen
-        screen_w, screen_h = self.rect.width, self.rect.height
-        img_w, img_h = image.get_size()
-        
-        scale = min(screen_w / img_w, screen_h / img_h)
-        new_w, new_h = int(img_w * scale), int(img_h * scale)
-        scaled_image = pygame.transform.scale(image, (new_w, new_h))
-        
-        # Center the image
-        img_rect = scaled_image.get_rect(center=(screen_w // 2, screen_h // 2))
-        surface.blit(scaled_image, img_rect)
+        try:
+            # Scale image to fit screen
+            screen_w, screen_h = self.rect.width, self.rect.height
+            img_w, img_h = image.get_size()
+            
+            scale = min(screen_w / img_w, screen_h / img_h)
+            new_w, new_h = int(img_w * scale), int(img_h * scale)
+            scaled_image = pygame.transform.scale(image, (new_w, new_h))
+            
+            # Center the image
+            img_rect = scaled_image.get_rect(center=(screen_w // 2, screen_h // 2))
+            surface.blit(scaled_image, img_rect)
+        except Exception as e:
+            # Display error message if scaling fails
+            surface.fill((10, 30, 20))
+            error_text = self.title_font.render("Error displaying image", True, (200, 100, 100))
+            error_rect = error_text.get_rect(center=self.rect.center)
+            surface.blit(error_text, error_rect)
+            
+            # Draw back button
+            pygame.draw.rect(surface, (120, 100, 75), self.fullscreen_back_btn)
+            pygame.draw.rect(surface, (85, 65, 45), self.fullscreen_back_btn, 2)
+            back_text = self.font.render("Back", True, (255, 255, 255))
+            back_rect = back_text.get_rect(center=self.fullscreen_back_btn.center)
+            surface.blit(back_text, back_rect)
+            return
         
         # Draw info panel
         panel_height = 80
@@ -306,7 +378,7 @@ class GalleryScreen:
         # Draw back button
         pygame.draw.rect(surface, (120, 100, 75), self.fullscreen_back_btn)
         pygame.draw.rect(surface, (85, 65, 45), self.fullscreen_back_btn, 2)
-        back_text = self.font.render("Back", True, (255, 255, 255))
+        back_text = self.font.render("Back to Gallery", True, (255, 255, 255))
         back_rect = back_text.get_rect(center=self.fullscreen_back_btn.center)
         surface.blit(back_text, back_rect)
         

@@ -188,7 +188,7 @@ class Menu:
             Button(quit_rect, "Quit", quit_cb),
         ]
         self.title_font = pygame.font.SysFont(None, 80)  # Larger title
-        self.background_image = pygame.image.load('AetherialGardens/assets/images/ui.png').convert()
+        self.background_image = pygame.image.load('assets/images/ui.png').convert()
         self.background_image = pygame.transform.scale(self.background_image, screen_rect.size)
 
     def draw(self, surf: pygame.Surface) -> None:

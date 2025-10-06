@@ -122,7 +122,7 @@ class CroppingTool:
         )
         
         # Grid size selection
-        self.grid_size = 3
+        self.grid_size = None  # No default selection
         self.size_buttons = []
         self._create_size_buttons()
         
@@ -179,6 +179,18 @@ class CroppingTool:
     
     def _update_preview(self):
         """Update the puzzle preview based on current crop and grid size."""
+        # If no grid size selected, clear the preview but keep the preview area visible
+        if self.grid_size is None:
+            self.preview_board = None
+            # Set a default preview rect position
+            self.preview_rect = pygame.Rect(
+                self.rect.right - 180,  # Default size
+                100,
+                180,  # Default size
+                180   # Default size
+            )
+            return
+        
         # Get the cropped area
         crop_rect = self.crop_box.get_rect()
         
@@ -190,9 +202,38 @@ class CroppingTool:
             crop_rect.height
         )
         
+        # Bounds checking - make sure we don't go outside the image
+        img_rect = self.scaled_image.get_rect()
+        
+        # Make sure the crop dimensions don't exceed the image dimensions
+        crop_width = min(adjusted_rect.width, img_rect.width)
+        crop_height = min(adjusted_rect.height, img_rect.height)
+        
+        # Adjust position to stay within bounds and update dimensions
+        adjusted_x = max(img_rect.left, min(adjusted_rect.x, img_rect.right - crop_width))
+        adjusted_y = max(img_rect.top, min(adjusted_rect.y, img_rect.bottom - crop_height))
+        
+        adjusted_rect = pygame.Rect(adjusted_x, adjusted_y, crop_width, crop_height)
+        
         # Extract the cropped image
         try:
             cropped = self.scaled_image.subsurface(adjusted_rect).copy()
+            
+            # Verify the cropped image has valid dimensions
+            crop_width, crop_height = cropped.get_size()
+            if crop_width <= 0 or crop_height <= 0:
+                print("Cropped image has invalid dimensions")
+                self.preview_board = None
+                tile_size = 40
+                margin = 2
+                board_size = self.grid_size * tile_size + (self.grid_size + 1) * margin if self.grid_size else 180
+                self.preview_rect = pygame.Rect(
+                    self.rect.right - board_size - 20,
+                    100,
+                    board_size,
+                    board_size
+                )
+                return
             
             # Create a small preview board
             tile_size = 40
@@ -203,7 +244,8 @@ class CroppingTool:
                 rows=self.grid_size,
                 cols=self.grid_size,
                 tile_size=tile_size,
-                margin=margin
+                margin=margin,
+                is_preview=True  # Don't shuffle for preview
             )
             
             # Apply the cropped image to the preview board
@@ -217,9 +259,20 @@ class CroppingTool:
                 board_size
             )
             
-        except pygame.error:
-            # If crop is outside image bounds, create empty preview
+        except pygame.error as e:
+            # If crop is outside image bounds or image processing fails, create empty preview
+            print(f"Preview error: {e}")
             self.preview_board = None
+            # But still keep the preview area visible
+            tile_size = 40
+            margin = 2
+            board_size = self.grid_size * tile_size + (self.grid_size + 1) * margin if self.grid_size else 180
+            self.preview_rect = pygame.Rect(
+                self.rect.right - board_size - 20,
+                100,
+                board_size,
+                board_size
+            )
     
     def handle_event(self, event: pygame.event.Event):
         """Handle pygame events."""
@@ -243,8 +296,8 @@ class CroppingTool:
                 self.back_cb()
                 return
             
-            # Handle start button
-            if self.start_btn.collidepoint(mouse_pos):
+            # Handle start button (only if difficulty is selected)
+            if self.start_btn.collidepoint(mouse_pos) and self.grid_size is not None:
                 self._start_puzzle()
                 return
     
@@ -265,6 +318,19 @@ class CroppingTool:
             crop_rect.width,
             crop_rect.height
         )
+        
+        # Bounds checking - make sure we don't go outside the image
+        img_rect = self.scaled_image.get_rect()
+        
+        # Make sure the crop dimensions don't exceed the image dimensions
+        crop_width = min(adjusted_rect.width, img_rect.width)
+        crop_height = min(adjusted_rect.height, img_rect.height)
+        
+        # Adjust position to stay within bounds and update dimensions
+        adjusted_x = max(img_rect.left, min(adjusted_rect.x, img_rect.right - crop_width))
+        adjusted_y = max(img_rect.top, min(adjusted_rect.y, img_rect.bottom - crop_height))
+        
+        adjusted_rect = pygame.Rect(adjusted_x, adjusted_y, crop_width, crop_height)
         
         # Extract the cropped image
         try:
@@ -299,16 +365,24 @@ class CroppingTool:
         preview_label = self.font.render("Preview", True, (200, 220, 200))
         surface.blit(preview_label, (self.rect.right - 150, 70))
         
-        # Draw preview board
-        if self.preview_board and self.preview_rect:
+        # Draw preview board area
+        if self.preview_rect:
             # Draw preview background
             pygame.draw.rect(surface, (30, 60, 45), self.preview_rect)
             pygame.draw.rect(surface, (70, 120, 90), self.preview_rect, 2)
             
-            # Create a temporary surface for the preview
-            preview_surface = pygame.Surface(self.preview_rect.size)
-            self.preview_board.draw(preview_surface, pygame.font.SysFont(None, 24))
-            surface.blit(preview_surface, self.preview_rect)
+            if self.preview_board:
+                # Create a temporary surface for the preview
+                preview_surface = pygame.Surface(self.preview_rect.size)
+                self.preview_board.draw_preview(preview_surface, pygame.font.SysFont(None, 24))
+                surface.blit(preview_surface, self.preview_rect)
+            else:
+                # If no preview board (no grid size selected), show placeholder text
+                if self.grid_size is None:
+                    # Draw placeholder text
+                    placeholder_text = self.font.render("Select Grid Size", True, (180, 200, 180))
+                    text_rect = placeholder_text.get_rect(center=self.preview_rect.center)
+                    surface.blit(placeholder_text, text_rect)
         
         # Draw size buttons
         for btn_rect, size in self.size_buttons:
@@ -327,9 +401,11 @@ class CroppingTool:
         back_rect = back_text.get_rect(center=self.back_btn.center)
         surface.blit(back_text, back_rect)
         
-        # Draw start button
-        pygame.draw.rect(surface, (70, 120, 90), self.start_btn)
-        pygame.draw.rect(surface, (30, 60, 45), self.start_btn, 2)
-        start_text = self.font.render("Start Puzzle", True, (255, 255, 255))
+        # Draw start button (only enable if a difficulty is selected) - should say "Weave This Memory" per requirements
+        btn_color = (70, 120, 90) if self.grid_size is not None else (50, 80, 65)
+        border_color = (30, 60, 45) if self.grid_size is not None else (20, 40, 30)
+        pygame.draw.rect(surface, btn_color, self.start_btn)
+        pygame.draw.rect(surface, border_color, self.start_btn, 2)
+        start_text = self.font.render("Weave This Memory", True, (255, 255, 255))
         start_rect = start_text.get_rect(center=self.start_btn.center)
         surface.blit(start_text, start_rect)

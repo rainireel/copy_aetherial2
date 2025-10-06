@@ -2,7 +2,6 @@
 
 import random
 from typing import List, Tuple
-
 import pygame
 
 # ------------------------------------------------------------
@@ -52,6 +51,7 @@ class Board:
         tile_size: int = 150,
         margin: int = 5,
         image_surface: pygame.Surface | None = None,   # <-- NEW
+        is_preview: bool = False,  # Don't shuffle for previews
     ):
         self.rows = rows
         self.cols = cols
@@ -62,7 +62,9 @@ class Board:
         self._create_tiles()
         if image_surface:
             self.apply_image(image_surface)   # texture the board
-        self.shuffle(80)
+        # Only shuffle for actual games, not previews
+        if not is_preview:
+            self.shuffle(80)
 
     # ------------------- private helpers -------------------
     def _create_tiles(self) -> None:
@@ -116,18 +118,33 @@ class Board:
 
     def apply_custom_image(self, img: pygame.Surface) -> None:
         """
-        Apply a custom image to the board tiles.
+        Apply a custom image to the board tiles, integrating with image pygame.Surface tiles.
         This is similar to apply_image but specifically for custom puzzles.
         """
         if not img:
+            print("No image provided to apply_custom_image")
+            return
+            
+        # Get original image dimensions
+        img_width, img_height = img.get_size()
+        if img_width <= 0 or img_height <= 0:
+            print(f"Invalid image dimensions: {img_width}x{img_height}")
             return
             
         # Compute the total drawable area (without margins)
         drawable_w = self.cols * self.tile_size
         drawable_h = self.rows * self.tile_size
         
+        if drawable_w <= 0 or drawable_h <= 0:
+            print(f"Invalid drawable dimensions: {drawable_w}x{drawable_h}")
+            return
+        
         # Scale the image to fit the board
-        scaled = pygame.transform.smoothscale(img, (drawable_w, drawable_h))
+        try:
+            scaled = pygame.transform.smoothscale(img, (drawable_w, drawable_h))
+        except pygame.error as e:
+            print(f"Failed to scale image: {e}")
+            return
 
         for r in range(self.rows):
             for c in range(self.cols):
@@ -140,13 +157,50 @@ class Board:
                     self.tile_size,
                     self.tile_size,
                 )
-                tile.image = scaled.subsurface(sub_rect).copy()
+                
+                # Make sure sub_rect is within bounds
+                if (sub_rect.x < 0 or sub_rect.y < 0 or 
+                    sub_rect.right > scaled.get_width() or 
+                    sub_rect.bottom > scaled.get_height()):
+                    print(f"Sub-rectangle out of bounds for tile at ({r}, {c})")
+                    continue
+                
+                try:
+                    tile.image = scaled.subsurface(sub_rect).copy()
+                except pygame.error as e:
+                    # Handle the case where subsurface fails
+                    print(f"Error creating tile at ({r}, {c}): {e}")
+                    tile.image = None
 
     # ------------------- public API -------------------
     def draw(self, surface: pygame.Surface, font: pygame.font.Font) -> None:
         for row in self.tiles:
             for tile in row:
                 tile.draw(surface, font)
+
+    def draw_preview(self, surface: pygame.Surface, font: pygame.font.Font) -> None:
+        """Draw the board for preview purposes with proper positioning."""
+        for r, row in enumerate(self.tiles):
+            for c, tile in enumerate(row):
+                # Calculate position relative to the preview surface
+                x_pos = c * self.tile_size + (c + 1) * self.margin
+                y_pos = r * self.tile_size + (r + 1) * self.margin
+                
+                # Create a temp tile to draw at the correct position
+                if tile.number != 0 and tile.image:
+                    # Draw the tile image at the calculated position
+                    surface.blit(tile.image, (x_pos, y_pos))
+                elif tile.number != 0:
+                    # Draw a colored tile if no image
+                    temp_rect = pygame.Rect(x_pos, y_pos, self.tile_size, self.tile_size)
+                    pygame.draw.rect(surface, (70, 150, 100), temp_rect)
+                    pygame.draw.rect(surface, (30, 80, 60), temp_rect, 2)
+                    # Add number if needed for debugging
+                    if font:
+                        txt = font.render(str(tile.number), True, (255, 255, 255))
+                        txt_rect = txt.get_rect(center=temp_rect.center)
+                        surface.blit(txt, txt_rect)
+                # Note: tile.number == 0 (empty) is intentionally not drawn
 
     def _swap(self, pos_a: Tuple[int, int], pos_b: Tuple[int, int]) -> None:
         r1, c1 = pos_a
@@ -224,3 +278,53 @@ class Board:
                                      (c * self.tile_size, r * self.tile_size))
         
         return reconstructed
+
+    @staticmethod
+    def slice_image(source_image: pygame.Surface, grid_size: int) -> List[pygame.Surface]:
+        """
+        Slice a source image into a grid of tile surfaces (static method for utility).
+        
+        Args:
+            source_image: The source image to slice
+            grid_size: The size of the grid (e.g., 3 for 3x3)
+            
+        Returns:
+            A list of pygame.Surface objects representing the tiles, 
+            with the last tile being None (empty tile)
+        """
+        if not source_image or grid_size <= 0:
+            return []
+
+        # Get the dimensions of the source image
+        img_width, img_height = source_image.get_size()
+        
+        # Calculate the size of each tile
+        tile_width = img_width // grid_size
+        tile_height = img_height // grid_size
+        
+        tiles = []
+        
+        # Slice the image into tiles
+        for row in range(grid_size):
+            for col in range(grid_size):
+                # Calculate the rectangle for this tile
+                tile_rect = pygame.Rect(
+                    col * tile_width,
+                    row * tile_height,
+                    tile_width,
+                    tile_height
+                )
+                
+                # Extract the tile as a subsurface
+                try:
+                    tile_surface = source_image.subsurface(tile_rect).copy()
+                    tiles.append(tile_surface)
+                except pygame.error:
+                    # If subsurface fails (e.g., invalid rectangle), create a blank tile
+                    blank_tile = pygame.Surface((tile_width, tile_height))
+                    blank_tile.fill((50, 50, 50))  # Gray placeholder
+                    tiles.append(blank_tile)
+        
+        # Return all tiles (the last tile is not set to None because in the actual puzzle,
+        # we use tile.number = 0 to identify empty tiles, not None image)
+        return tiles
