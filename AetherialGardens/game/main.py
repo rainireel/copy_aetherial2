@@ -323,7 +323,7 @@ menu_settings_button = Button(
     lambda: switch_state(STATE_SETTINGS),
     bg_color=(85, 120, 100),  # More vibrant green for better visibility
     txt_color=(255, 255, 255),  # White text for contrast
-    image_path='assets/images/button.png'  # Use the button image (relative to working directory)
+    image_path='AetherialGardens/assets/images/button.png'  # Use the button image (relative to working directory)
 )
 
 # Add custom puzzle button to the menu (removing Settings and Gallery from main menu)

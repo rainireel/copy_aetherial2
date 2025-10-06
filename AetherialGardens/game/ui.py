@@ -188,73 +188,16 @@ class Menu:
             Button(quit_rect, "Quit", quit_cb),
         ]
         self.title_font = pygame.font.SysFont(None, 80)  # Larger title
+        self.background_image = pygame.image.load('AetherialGardens/assets/images/ui.png').convert()
+        self.background_image = pygame.transform.scale(self.background_image, screen_rect.size)
 
     def draw(self, surf: pygame.Surface) -> None:
-        # Garden-themed background with subtle organic pattern
-        # Base background with garden green tones
-        base_bg = pygame.Surface(surf.get_size())
-        base_bg.fill((15, 40, 25))  # Darker garden green
-        
-        # Add subtle organic pattern for garden feel
-        for y in range(0, surf.get_height(), 30):
-            for x in range(0, surf.get_width(), 30):
-                if (x // 30 + y // 30) % 4 == 0:  # Create a subtle pattern
-                    pygame.draw.circle(base_bg, (10, 35, 20), (x, y), 2)
-        
-        surf.blit(base_bg, (0, 0))
-        
-        # Add a subtle vignette effect
-        vignette = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-        vignette_size = max(surf.get_width(), surf.get_height()) * 1.2
-        vignette_surf = pygame.Surface((vignette_size, vignette_size), pygame.SRCALPHA)
-        pygame.draw.circle(vignette_surf, (0, 0, 0, 150), 
-                          (vignette_size//2, vignette_size//2), 
-                          vignette_size//2)
-        vignette_pos = (surf.get_width()//2 - vignette_size//2, 
-                        surf.get_height()//2 - vignette_size//2)
-        surf.blit(vignette_surf, vignette_pos)
+        surf.blit(self.background_image, (0, 0))
         # Title text with enhanced visual hierarchy and garden theme
         title = self.title_font.render("Aetherial Gardens", True, (245, 252, 235))  # Brighter almost-white text with slight green tint
         title_rect = title.get_rect(center=(surf.get_width() // 2, surf.get_height() // 4 - 30))  # Adjusted position
         
-        # Enhanced glow effect for better readability with garden theme
-        for dx in [-4, -3, -2, -1, 1, 2, 3, 4]:
-            for dy in [-4, -3, -2, -1, 1, 2, 3, 4]:
-                if abs(dx) + abs(dy) <= 4:  # Create a circular glow pattern
-                    glow = self.title_font.render("Aetherial Gardens", True, (60, 90, 70, 80))  # Garden green glow with transparency
-                    surf.blit(glow, (title_rect.x + dx, title_rect.y + dy))
-        
-        # Subtle highlight effect
-        highlight = self.title_font.render("Aetherial Gardens", True, (180, 220, 190, 100))  # Light green highlight
-        surf.blit(highlight, (title_rect.x - 1, title_rect.y - 1))
-        
         surf.blit(title, title_rect)
-        
-        # Subtitle for "Shard of Memory" with more garden-like styling
-        subtitle_font = pygame.font.SysFont(None, 32)  # Slightly smaller font for subtitle
-        subtitle = subtitle_font.render("- Shard of Memory -", True, (190, 230, 170))  # Garden-themed green-tinged color
-        subtitle_rect = subtitle.get_rect(center=(surf.get_width() // 2, surf.get_height() // 4 + 15))  # Closer to main title
-        
-        # Subtle glow for subtitle with garden theme
-        for dx in [-2, -1, 1, 2]:
-            for dy in [-2, -1, 1, 2]:
-                sub_glow = subtitle_font.render("- Shard of Memory -", True, (50, 80, 60, 70))
-                surf.blit(sub_glow, (subtitle_rect.x + dx, subtitle_rect.y + dy))
-        
-        surf.blit(subtitle, subtitle_rect)
-        
-        # Add decorative elements - small garden-style icons near the title
-        # Left side decoration
-        left_decor_x = surf.get_width() // 2 - title_rect.width // 2 - 30
-        right_decor_x = surf.get_width() // 2 + title_rect.width // 2 + 10
-        decor_y = surf.get_height() // 4 - 25
-        
-        # Draw small vine-like decorations
-        for i in range(3):
-            # Left decoration
-            pygame.draw.circle(surf, (80, 150, 70), (left_decor_x, decor_y + i*15), 4)
-            # Right decoration 
-            pygame.draw.circle(surf, (80, 150, 70), (right_decor_x, decor_y + i*15), 4)
         
         # Buttons
         for btn in self.buttons:

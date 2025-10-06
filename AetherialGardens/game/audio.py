@@ -14,7 +14,7 @@ def init_mixer():
 # Load all SFX into a dictionary for easy lookup
 # -----------------------------------------------------------------
 def _load_sfx() -> dict[str, pygame.mixer.Sound]:
-    base = os.path.join('assets', 'audio')
+    base = os.path.join('AetherialGardens', 'assets', 'audio')
     sounds = {}
     
     # Try different extensions for each sound file to handle both WAV and MP3
@@ -71,7 +71,7 @@ def load_sfx():
 def load_music():
     """Load the ambient background music."""
     # Try both .wav and .mp3 extensions for ambient music
-    base = os.path.join('assets', 'audio')
+    base = os.path.join('AetherialGardens', 'assets', 'audio')
     music_path = os.path.join(base, 'ambient.wav')
     try:
         pygame.mixer.music.load(music_path)
