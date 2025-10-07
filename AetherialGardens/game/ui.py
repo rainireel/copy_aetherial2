@@ -7,7 +7,10 @@ import pygame
 from typing import Callable, Tuple
 
 # Import the audio system for UI sounds
-from .audio import play
+try:
+    from .audio import play
+except ImportError:
+    from audio import play
 
 # ------------------------------------------------------------
 # Button – rectangular clickable UI element with animations.
@@ -265,20 +268,29 @@ class LevelSelect:
     def __init__(self, screen_rect: pygame.Rect, start_cb, back_cb):
         # -----------------------------------------------------------------
         # Imports that are needed only here (avoid circular imports)
-        # -----------------------------------------------------------------
-        from .save import load_progress, star_key
-        from .star import StarHUD
-
-        # -----------------------------------------------------------------
-        # Load persisted progress (once, when the screen is created)
-        # -----------------------------------------------------------------
-        self.progress = load_progress()                 # {"best_moves": {}, "best_stars": {}}
-        self.star_key = star_key                       # helper to build "3x3", "4x4", …
-
+        # Imports that are needed only here (avoid circular imports)
+        try:
+            from .save import load_progress, star_key
+        except ImportError:
+            from save import load_progress, star_key
+        try:
+            from .star import StarHUD
+        except ImportError:
+            from star import StarHUD
+            self.progress = load_progress()                 # {"best_moves": {}, "best_stars": {}}
+            self.star_key = star_key                       # helper to build "3x3", "4x4", …
+        except ImportError:
+            from save import load_progress, star_key
+            self.progress = load_progress()                 # {"best_moves": {}, "best_stars": {}}
+            self.star_key = star_key                       # helper to build "3x3", "4x4", …
+        
         # -----------------------------------------------------------------
         # Build UI elements
         # -----------------------------------------------------------------
-        from .levels import LEVELS
+        try:
+            from .levels import LEVELS
+        except ImportError:
+            from levels import LEVELS
         self.levels = LEVELS
 
         self.start_cb = start_cb
@@ -441,41 +453,17 @@ class LevelSelect:
             # Draw frame with consistent styling
             pygame.draw.rect(surf, border_color, rect, 2)
 
-            # Row 1: Title with difficulty icon
+            # Center the level name in the button
             txt = self.font.render(lvl.name, True, (240, 250, 210))  # Light cream
-            # Draw difficulty icon first (like 🌱, 🌿, 🌳)
-            icon_width = 20
-            icon_x = rect.left + 15
-            icon_y = rect.top + 18  # Consistent vertical alignment
-            self._draw_difficulty_icon(surf, (icon_x, icon_y), lvl.rows)
-            
-            # Text next to icon with consistent spacing
-            text_x = icon_x + icon_width + 8  # 8px spacing between icon and text
-            text_y = rect.top + 15  # Top padding
+            # Calculate centered position for the text
+            text_x = rect.centerx - txt.get_width() // 2
+            text_y = rect.centery - txt.get_height() // 2 - 10  # Slightly above center
             surf.blit(txt, (text_x, text_y))
 
-            # Row 2: Status with star icon
-            size_key = self.star_key(lvl.rows)
-            best_moves = self.progress["best_moves"].get(size_key)
-            
-            if best_moves is not None:
-                # Status text with star icon - second row below title
-                status_txt = self.small_font.render(f"🌟 BEST: {best_moves}", True, (220, 240, 190))  # Light beige
-                status_x = rect.left + 15  # Left align with the icon above
-                status_y = rect.top + 45  # Second row, below the title row
-                surf.blit(status_txt, (status_x, status_y))
-            else:
-                # Show "Not Played" for unattempted levels
-                status_txt = self.status_font.render("❓ NOT PLAYED", True, (160, 180, 160))  # Muted green
-                status_x = rect.left + 15  # Left align with the icon above
-                status_y = rect.top + 45  # Second row, below the title row
-                surf.blit(status_txt, (status_x, status_y))
-
-            # Draw best stars centered below both rows
-            best_stars = self.progress["best_stars"].get(size_key, 0)
+            # Draw star indicators for all levels (no best stars tracking)
             # Position stars centered below the text with proper spacing
-            star_center = (rect.centerx, rect.top + 70)  # Below both text rows
-            self._draw_small_stars(surf, star_center, best_stars, is_hovered)
+            star_center = (rect.centerx, rect.centery + 25)  # Below the centered text
+            self._draw_small_stars(surf, star_center, 0, is_hovered)  # Always show 0 stars initially
 
         # Styled back button
         pygame.draw.rect(surf, (120, 100, 75), self.back_rect)

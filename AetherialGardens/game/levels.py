@@ -14,17 +14,17 @@ class LevelInfo(NamedTuple):
 # ---------------------------------------------------------------------
 LEVELS = [
     LevelInfo(
-        name="Aetherial – 3 × 3",
+        name="3x3 Puzzle",
         rows=3,
         bg_path=Path("assets/images/garden_3x3.png"),
     ),
     LevelInfo(
-        name="Aetherial – 4 × 4",
+        name="4x4 Puzzle",
         rows=4,
         bg_path=Path("assets/images/garden_4x4.png"),
     ),
     LevelInfo(
-        name="Aetherial – 5 × 5",
+        name="5x5 Puzzle",
         rows=5,
         bg_path=Path("assets/images/garden_5x5.png"),
     ),

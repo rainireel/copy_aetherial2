@@ -11,8 +11,6 @@ def _ensure_file() -> None:
     """Create the file with defaults if it does not exist."""
     if not os.path.isfile(SAVE_PATH):
         default = {
-            "best_moves": {},          # e.g. {"3x3": 18}
-            "best_stars": {},          # e.g. {"3x3": 3}
             "volume": 0.4,             # music & SFX volume (0.0 – 1.0)
             "muted": False,            # global mute flag
         }
@@ -27,8 +25,7 @@ def load_progress() -> Dict[str, Any]:
         data = json.load(f)
 
     # Ensure every key we expect is present (future‑proofing)
-    data.setdefault("best_moves", {})
-    data.setdefault("best_stars", {})
+    # Remove best moves and best stars tracking
     data.setdefault("volume", 0.4)
     data.setdefault("muted", False)
     return data

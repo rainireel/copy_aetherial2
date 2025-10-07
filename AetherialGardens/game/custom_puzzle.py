@@ -2,8 +2,13 @@
 
 import pygame
 from typing import Optional, Callable, Dict, Any
-from .image_loader import ImageLoader
-from .cropping_tool import CroppingTool
+
+try:
+    from .image_loader import ImageLoader
+    from .cropping_tool import CroppingTool
+except ImportError:
+    from image_loader import ImageLoader
+    from cropping_tool import CroppingTool
 
 class CustomPuzzleScreen:
     """Screen for creating custom puzzles from user images."""

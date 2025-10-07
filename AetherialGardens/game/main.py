@@ -7,9 +7,13 @@ from pathlib import Path
 # -----------------------------------------------------------------
 # Local imports
 # -----------------------------------------------------------------
-from .puzzle import Board
-from .ui import Menu, HUD, LevelSelect, Button
-from .audio import (
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from puzzle import Board
+from ui import Menu, HUD, LevelSelect, Button
+from audio import (
     init_mixer,
     load_sfx,
     load_music,
@@ -18,15 +22,15 @@ from .audio import (
     play,
     set_volume,                # <-- NEW
 )
-from .save import load_progress, save_progress, star_key
-from .star import StarHUD
-from .pause import PauseMenu
-from .settings import SettingsScreen   # <-- NEW
-from .image_loader import ImageLoader
-from .custom_puzzle import CustomPuzzleScreen
-from .cropping_tool import CroppingTool
-from .gallery import Gallery, GalleryScreen  # <-- NEW
-from .win_screen import WinScreen  # Win/restoration screen
+from save import load_progress, save_progress
+from star import StarHUD
+from pause import PauseMenu
+from settings import SettingsScreen   # <-- NEW
+from image_loader import ImageLoader
+from custom_puzzle import CustomPuzzleScreen
+from cropping_tool import CroppingTool
+from gallery import Gallery, GalleryScreen  # <-- NEW
+from win_screen import WinScreen  # Win/restoration screen
 
 # -----------------------------------------------------------------
 # Constants
@@ -147,9 +151,6 @@ def start_game(level_info):
         margin=4,
     )
     hud.move_count = 0
-    key = star_key(level_info.rows)
-    if "best_moves" in progress and key in progress["best_moves"]:
-        hud.move_count = progress["best_moves"][key]
     game_state = STATE_PLAYING
     star_hud.set_rating(0)
 
@@ -342,7 +343,7 @@ gallery = Gallery()
 win_screen = None
 
 # Initialize the settings button as a separate UI element (it will be drawn separately)
-from .ui import Button
+from ui import Button
 settings_btn_size = 60
 menu_settings_button = Button(
     pygame.Rect(WINDOW_SIZE[0] - settings_btn_size - 15, 15, settings_btn_size, settings_btn_size),
@@ -354,7 +355,7 @@ menu_settings_button = Button(
 )
 
 # Add custom puzzle button to the menu (removing Settings and Gallery from main menu)
-from .ui import Button
+from ui import Button
 w, h = WINDOW_SIZE
 btn_w, btn_h = 250, 60
 spacing = 60  # Increased spacing for better breathing room between buttons
@@ -514,13 +515,7 @@ while running:
             rows_value = selected_level["rows"] if isinstance(selected_level, dict) else selected_level.rows
             rating = StarHUD.compute_rating(rows_value, hud.move_count)
             star_hud.set_rating(rating)
-            size_key = star_key(rows_value)
-            best_moves = progress.get("best_moves", {}).get(size_key)
-            if best_moves is None or hud.move_count < best_moves:
-                progress.setdefault("best_moves", {})[size_key] = hud.move_count
-            best_star = progress.get("best_stars", {}).get(size_key, 0)
-            if rating > best_star:
-                progress.setdefault("best_stars", {})[size_key] = rating
+            # No longer tracking best scores - just continue
 
             is_custom = isinstance(selected_level, dict) and 'custom_image' in selected_level
             if is_custom:

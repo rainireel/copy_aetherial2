@@ -2,7 +2,11 @@
 
 import pygame
 from typing import Tuple, Optional, Callable
-from .puzzle import Board
+
+try:
+    from .puzzle import Board
+except ImportError:
+    from puzzle import Board
 
 class CropBox:
     """Draggable and resizable square selection box."""

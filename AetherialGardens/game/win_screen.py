@@ -3,7 +3,11 @@
 import pygame
 from typing import Callable, Optional
 import os
-from .gallery import Gallery
+
+try:
+    from .gallery import Gallery
+except ImportError:
+    from gallery import Gallery
 
 class WinScreen:
     """Screen shown when the puzzle is solved."""
