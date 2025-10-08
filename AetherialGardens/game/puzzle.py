@@ -74,9 +74,10 @@ class Board:
         board_width = self.cols * self.tile_size + (self.cols + 1) * self.margin
         board_height = self.rows * self.tile_size + (self.rows + 1) * self.margin
         # Calculate offset to center the board in the window
-        # We'll assume a standard 800x600 window here, but this could be parameterized
-        offset_x = (800 - board_width) // 2
-        offset_y = (600 - board_height) // 2
+        # We'll get the window size from the screen surface
+        window_width, window_height = pygame.display.get_surface().get_size()
+        offset_x = (window_width - board_width) // 2
+        offset_y = (window_height - board_height) // 2
         
         for r in range(self.rows):
             row: List[Tile] = []
@@ -210,8 +211,9 @@ class Board:
         # Keep rects aligned with the grid after swapping
         tile_a = self.tiles[r1][c1]
         tile_b = self.tiles[r2][c2]
-        offset_x = (800 - (self.cols * self.tile_size + (self.cols + 1) * self.margin)) // 2
-        offset_y = (600 - (self.rows * self.tile_size + (self.rows + 1) * self.margin)) // 2
+        window_width, window_height = pygame.display.get_surface().get_size()
+        offset_x = (window_width - (self.cols * self.tile_size + (self.cols + 1) * self.margin)) // 2
+        offset_y = (window_height - (self.rows * self.tile_size + (self.rows + 1) * self.margin)) // 2
         tile_a.rect.topleft = (
             (c1 + 1) * self.margin + c1 * self.tile_size + offset_x,
             (r1 + 1) * self.margin + r1 * self.tile_size + offset_y,

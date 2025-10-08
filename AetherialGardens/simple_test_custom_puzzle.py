@@ -22,7 +22,7 @@ def test_imports():
         pygame.init()  # Initialize pygame
         
         # Create a mock screen rect
-        screen_rect = pygame.Rect(0, 0, 800, 600)
+        screen_rect = pygame.Rect(0, 0, 1280, 720)
         
         # Define mock callbacks
         def mock_back():

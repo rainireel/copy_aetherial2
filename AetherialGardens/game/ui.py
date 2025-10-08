@@ -197,7 +197,7 @@ class Menu:
     def draw(self, surf: pygame.Surface) -> None:
         surf.blit(self.background_image, (0, 0))
         # Title text with enhanced visual hierarchy and garden theme
-        title = self.title_font.render("Aetherial Gardens", True, (245, 252, 235))  # Brighter almost-white text with slight green tint
+        title = self.title_font.render("Aetherial Levels", True, (245, 252, 235))  # Brighter almost-white text with slight green tint
         title_rect = title.get_rect(center=(surf.get_width() // 2, surf.get_height() // 4 - 30))  # Adjusted position
         
         surf.blit(title, title_rect)
@@ -417,14 +417,14 @@ class LevelSelect:
         surf.blit(overlay, (0, 0))
 
         # Title with cozy garden fantasy theme
-        title = self.title_font.render("AETHERIAL GARDENS", True, (180, 230, 150))  # Pastel green
+        title = self.title_font.render("AETHERIAL LEVELS", True, (180, 230, 150))  # Pastel green
         title_rect = title.get_rect(center=(surf.get_width() // 2, 80))
         
         # Softer glow effect for garden fantasy feel
         for dx in [-1, 0, 1]:
             for dy in [-1, 0, 1]:
                 if dx != 0 or dy != 0:  # Skip the center
-                    outline = self.title_font.render("AETHERIAL GARDENS", True, (60, 100, 70))
+                    outline = self.title_font.render("AETHERIAL LEVELS", True, (60, 100, 70))
                     surf.blit(outline, (title_rect.x + dx, title_rect.y + dy))
         
         surf.blit(title, title_rect)

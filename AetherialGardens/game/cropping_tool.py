@@ -19,7 +19,7 @@ class CropBox:
         self.drag_offset = (0, 0)
         self.corner_size = 12
         self.min_size = 100
-        self.max_size = 600
+        self.max_size = 800
         
     def get_rect(self) -> pygame.Rect:
         """Get the crop box as a pygame.Rect."""

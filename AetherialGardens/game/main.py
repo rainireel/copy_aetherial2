@@ -35,8 +35,8 @@ from win_screen import WinScreen  # Win/restoration screen
 # -----------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------
-WINDOW_TITLE = "Aetherial Gardens – Shard of Memory"
-WINDOW_SIZE = (800, 600)
+WINDOW_TITLE = "Aetherial Levels – Shard of Memory"
+WINDOW_SIZE = (1280, 720)
 BG_COLOR = (10, 30, 20)
 FPS = 60
 

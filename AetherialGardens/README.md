@@ -1,4 +1,4 @@
-# Aetherial Gardens
+# Aetherial Levels
 
 A Pygame-based garden simulation game where players can grow and nurture magical plants.
 

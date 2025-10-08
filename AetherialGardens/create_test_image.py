@@ -5,7 +5,7 @@ import os
 
 def create_test_image():
     # Create a simple test image
-    width, height = 800, 600
+    width, height = 1280, 720
     image = Image.new('RGB', (width, height), color='red')
     
     # Draw some shapes to make it visually distinct

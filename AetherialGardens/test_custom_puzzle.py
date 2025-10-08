@@ -12,7 +12,7 @@ def test_custom_puzzle_screen():
     pygame.init()
     
     # Create a test window
-    screen = pygame.display.set_mode((800, 600))
+    screen = pygame.display.set_mode((1280, 720))
     pygame.display.set_caption("Custom Puzzle Screen Test")
     clock = pygame.time.Clock()
     
@@ -28,7 +28,7 @@ def test_custom_puzzle_screen():
         running = False
     
     # Create the custom puzzle screen
-    screen_rect = pygame.Rect(0, 0, 800, 600)
+    screen_rect = pygame.Rect(0, 0, 1280, 720)
     custom_screen = CustomPuzzleScreen(screen_rect, back_callback, start_game_callback)
     
     running = True
