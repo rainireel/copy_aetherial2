@@ -54,10 +54,21 @@ class PauseMenu:
     # Rendering
     # -----------------------------------------------------------------
     def draw(self, surf: pygame.Surface) -> None:
-        # Dim the whole screen
-        overlay = pygame.Surface(self.rect.size, pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 150))
-        surf.blit(overlay, (0, 0))
+        # Draw the new background image first
+        try:
+            background_image = pygame.image.load('assets/images/backgroundui.png').convert()
+            background_image = pygame.transform.scale(background_image, surf.get_size())
+            surf.blit(background_image, (0, 0))
+            
+            # Then apply a dimming overlay for better text readability
+            overlay = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 150))  # Same dimming as before
+            surf.blit(overlay, (0, 0))
+        except pygame.error:
+            # Fallback to the original dimming if image loading fails
+            overlay = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 150))
+            surf.blit(overlay, (0, 0))
 
         # Title text
         title = self.font.render("Paused", True, (220, 220, 220))

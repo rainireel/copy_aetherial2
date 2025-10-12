@@ -191,7 +191,7 @@ class Menu:
             Button(quit_rect, "Quit", quit_cb),
         ]
         self.title_font = pygame.font.SysFont(None, 80)  # Larger title
-        self.background_image = pygame.image.load('assets/images/ui.png').convert()
+        self.background_image = pygame.image.load('assets/images/backgroundui.png').convert()
         self.background_image = pygame.transform.scale(self.background_image, screen_rect.size)
 
     def draw(self, surf: pygame.Surface) -> None:
@@ -406,15 +406,21 @@ class LevelSelect:
     # Rendering
     # -----------------------------------------------------------------
     def draw(self, surf: pygame.Surface) -> None:
-        # Cozy garden-themed background
-        overlay = pygame.Surface(surf.get_size())
-        overlay.fill((10, 40, 20))  # Dark green background
-        # Add subtle organic grid pattern for garden feel
-        for y in range(0, surf.get_height(), 16):
-            for x in range(0, surf.get_width(), 16):
-                if (x // 16 + y // 16) % 3 == 0:
-                    pygame.draw.rect(overlay, (8, 35, 18), (x, y, 8, 8))
-        surf.blit(overlay, (0, 0))
+        # Draw the new background image
+        try:
+            background_image = pygame.image.load('assets/images/backgroundui.png').convert()
+            background_image = pygame.transform.scale(background_image, surf.get_size())
+            surf.blit(background_image, (0, 0))
+        except pygame.error:
+            # Fallback to the original background if image loading fails
+            overlay = pygame.Surface(surf.get_size())
+            overlay.fill((10, 40, 20))  # Dark green background
+            # Add subtle organic grid pattern for garden feel
+            for y in range(0, surf.get_height(), 16):
+                for x in range(0, surf.get_width(), 16):
+                    if (x // 16 + y // 16) % 3 == 0:
+                        pygame.draw.rect(overlay, (8, 35, 18), (x, y, 8, 8))
+            surf.blit(overlay, (0, 0))
 
         # Title with cozy garden fantasy theme
         title = self.title_font.render("AETHERIAL LEVELS", True, (180, 230, 150))  # Pastel green

@@ -127,7 +127,14 @@ class WinScreen:
     
     def draw(self, surface: pygame.Surface) -> None:
         """Draw the win screen."""
-        surface.fill((10, 30, 20))  # Dark green background
+        # Draw the new background image
+        try:
+            background_image = pygame.image.load('assets/images/backgroundui.png').convert()
+            background_image = pygame.transform.scale(background_image, surface.get_size())
+            surface.blit(background_image, (0, 0))
+        except pygame.error:
+            # Fallback to the original background if image loading fails
+            surface.fill((10, 30, 20))  # Dark green background
         
         # Draw success message
         message = self.title_font.render("Memory Restored!", True, (255, 255, 200))  # Light yellow

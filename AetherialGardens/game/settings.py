@@ -49,10 +49,21 @@ class SettingsScreen:
     # Rendering
     # -----------------------------------------------------------------
     def draw(self, surf: pygame.Surface) -> None:
-        # Dim the whole screen
-        overlay = pygame.Surface(self.rect.size, pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
-        surf.blit(overlay, (0, 0))
+        # Draw the new background image first
+        try:
+            background_image = pygame.image.load('assets/images/backgroundui.png').convert()
+            background_image = pygame.transform.scale(background_image, surf.get_size())
+            surf.blit(background_image, (0, 0))
+            
+            # Then apply a dimming overlay for better text readability
+            overlay = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 150))  # Slightly less dimming than before
+            surf.blit(overlay, (0, 0))
+        except pygame.error:
+            # Fallback to the original dimming if image loading fails
+            overlay = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 180))
+            surf.blit(overlay, (0, 0))
 
         # Title
         title = self.title_font.render("Settings", True, (230, 230, 230))
