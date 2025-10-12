@@ -172,7 +172,7 @@ class Menu:
         cx = w // 2
         # Calculate vertical center for the entire menu block
         total_menu_height = btn_h * 3 + spacing * 2  # 3 buttons + 2 spaces between
-        start_y = (h - total_menu_height) // 2 + 80  # Add offset to position below title
+        start_y = (h - total_menu_height) // 2 + 120  # Increased offset to position below title image
         # Start (top)
         start_rect = pygame.Rect(0, 0, btn_w, btn_h)
         start_rect.centerx = cx
@@ -190,17 +190,34 @@ class Menu:
             Button(settings_rect, "Settings", settings_cb),
             Button(quit_rect, "Quit", quit_cb),
         ]
-        self.title_font = pygame.font.SysFont(None, 80)  # Larger title
         self.background_image = pygame.image.load('assets/images/backgroundui.png').convert()
         self.background_image = pygame.transform.scale(self.background_image, screen_rect.size)
+        # Load title image
+        try:
+            self.title_image = pygame.image.load('assets/images/finalstitleui.png').convert_alpha()
+            # Scale the title image if needed to fit the screen appropriately
+            max_width = screen_rect.width // 2  # Limit width to half the screen
+            img_width, img_height = self.title_image.get_size()
+            if img_width > max_width:
+                scale_factor = max_width / img_width
+                new_width = int(img_width * scale_factor)
+                new_height = int(img_height * scale_factor)
+                self.title_image = pygame.transform.scale(self.title_image, (new_width, new_height))
+        except pygame.error:
+            # Fallback to text if image fails to load
+            self.title_font = pygame.font.SysFont(None, 80)  # Larger title
 
     def draw(self, surf: pygame.Surface) -> None:
         surf.blit(self.background_image, (0, 0))
-        # Title text with enhanced visual hierarchy and garden theme
-        title = self.title_font.render("Aetherial Levels", True, (245, 252, 235))  # Brighter almost-white text with slight green tint
-        title_rect = title.get_rect(center=(surf.get_width() // 2, surf.get_height() // 4 - 30))  # Adjusted position
-        
-        surf.blit(title, title_rect)
+        # Draw title image with enhanced visual hierarchy and garden theme
+        if hasattr(self, 'title_image'):
+            title_rect = self.title_image.get_rect(center=(surf.get_width() // 2, surf.get_height() // 4 - 30))  # Adjusted position
+            surf.blit(self.title_image, title_rect)
+        else:
+            # Fallback to text if image is not available
+            title = self.title_font.render("Aetherial Levels", True, (245, 252, 235))  # Brighter almost-white text with slight green tint
+            title_rect = title.get_rect(center=(surf.get_width() // 2, surf.get_height() // 4 - 30))  # Adjusted position
+            surf.blit(title, title_rect)
         
         # Buttons
         for btn in self.buttons:
@@ -300,6 +317,21 @@ class LevelSelect:
         self.title_font = pygame.font.SysFont('Arial', 36, bold=True)
         self.small_font = pygame.font.SysFont('Arial', 20)  # Larger for better readability
         self.status_font = pygame.font.SysFont('Arial', 18, bold=True)  # For status text
+        
+        # Load title image
+        try:
+            self.title_image = pygame.image.load('assets/images/finalstitleui.png').convert_alpha()
+            # Scale the title image if needed to fit the screen appropriately
+            max_width = screen_rect.width // 3  # Limit width to a third of the screen
+            img_width, img_height = self.title_image.get_size()
+            if img_width > max_width:
+                scale_factor = max_width / img_width
+                new_width = int(img_width * scale_factor)
+                new_height = int(img_height * scale_factor)
+                self.title_image = pygame.transform.scale(self.title_image, (new_width, new_height))
+        except pygame.error:
+            # Fallback to text if image fails to load
+            pass  # Use text as fallback which is already handled in draw method
 
         # Button geometry – resized to better fit content
         btn_w, btn_h = 320, 85  # Smaller height to match content
@@ -422,18 +454,23 @@ class LevelSelect:
                         pygame.draw.rect(overlay, (8, 35, 18), (x, y, 8, 8))
             surf.blit(overlay, (0, 0))
 
-        # Title with cozy garden fantasy theme
-        title = self.title_font.render("AETHERIAL LEVELS", True, (180, 230, 150))  # Pastel green
-        title_rect = title.get_rect(center=(surf.get_width() // 2, 80))
-        
-        # Softer glow effect for garden fantasy feel
-        for dx in [-1, 0, 1]:
-            for dy in [-1, 0, 1]:
-                if dx != 0 or dy != 0:  # Skip the center
-                    outline = self.title_font.render("AETHERIAL LEVELS", True, (60, 100, 70))
-                    surf.blit(outline, (title_rect.x + dx, title_rect.y + dy))
-        
-        surf.blit(title, title_rect)
+        # Draw title image with enhanced visual hierarchy and garden theme
+        if hasattr(self, 'title_image'):
+            title_rect = self.title_image.get_rect(center=(surf.get_width() // 2, 80))  # Adjusted position
+            surf.blit(self.title_image, title_rect)
+        else:
+            # Title with cozy garden fantasy theme (fallback to text)
+            title = self.title_font.render("AETHERIAL LEVELS", True, (180, 230, 150))  # Pastel green
+            title_rect = title.get_rect(center=(surf.get_width() // 2, 80))
+            
+            # Softer glow effect for garden fantasy feel
+            for dx in [-1, 0, 1]:
+                for dy in [-1, 0, 1]:
+                    if dx != 0 or dy != 0:  # Skip the center
+                        outline = self.title_font.render("AETHERIAL LEVELS", True, (60, 100, 70))
+                        surf.blit(outline, (title_rect.x + dx, title_rect.y + dy))
+            
+            surf.blit(title, title_rect)
 
         # Level buttons + saved stats
         current_time = pygame.time.get_ticks()
