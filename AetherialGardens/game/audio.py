@@ -14,7 +14,9 @@ def init_mixer():
 # Load all SFX into a dictionary for easy lookup
 # -----------------------------------------------------------------
 def _load_sfx() -> dict[str, pygame.mixer.Sound]:
-    base = os.path.join('assets', 'audio')
+    # Use absolute paths to ensure files are found correctly
+    script_dir = os.path.dirname(os.path.abspath(__file__))  # Directory of this script (game/)
+    base = os.path.join(os.path.dirname(script_dir), 'assets', 'audio')  # Go up to project root, then into assets/audio
     sounds = {}
     
     # Try different extensions for each sound file to handle both WAV and MP3
@@ -66,12 +68,15 @@ def load_sfx():
             _sounds["confirm"] = _sounds["place"]
         elif "complete" in _sounds:
             _sounds["confirm"] = _sounds["complete"]
-    return _sounds["move"]          # legacy compatibility
+    # Return the move sound if available, otherwise return None or a fallback
+    return _sounds.get("move")
 
 def load_music():
     """Load the ambient background music."""
     # Try both .wav and .mp3 extensions for ambient music
-    base = os.path.join('assets', 'audio')
+    # Use absolute paths to ensure files are found correctly
+    script_dir = os.path.dirname(os.path.abspath(__file__))  # Directory of this script (game/)
+    base = os.path.join(os.path.dirname(script_dir), 'assets', 'audio')  # Go up to project root, then into assets/audio
     music_path = os.path.join(base, 'ambient.wav')
     try:
         pygame.mixer.music.load(music_path)
