@@ -172,7 +172,7 @@ class Menu:
         cx = w // 2
         # Calculate vertical center for the entire menu block
         total_menu_height = btn_h * 3 + spacing * 2  # 3 buttons + 2 spaces between
-        start_y = (h - total_menu_height) // 2 + 80  # Add offset to position below title
+        start_y = (h - total_menu_height) // 2 + 120  # Increased offset to position below title image
         # Start (top)
         start_rect = pygame.Rect(0, 0, btn_w, btn_h)
         start_rect.centerx = cx
@@ -190,17 +190,34 @@ class Menu:
             Button(settings_rect, "Settings", settings_cb),
             Button(quit_rect, "Quit", quit_cb),
         ]
-        self.title_font = pygame.font.SysFont(None, 80)  # Larger title
         self.background_image = pygame.image.load('assets/images/backgroundui.png').convert()
         self.background_image = pygame.transform.scale(self.background_image, screen_rect.size)
+        # Load title image
+        try:
+            self.title_image = pygame.image.load('assets/images/finalstitleui.png').convert_alpha()
+            # Scale the title image if needed to fit the screen appropriately
+            max_width = screen_rect.width // 2  # Limit width to half the screen
+            img_width, img_height = self.title_image.get_size()
+            if img_width > max_width:
+                scale_factor = max_width / img_width
+                new_width = int(img_width * scale_factor)
+                new_height = int(img_height * scale_factor)
+                self.title_image = pygame.transform.scale(self.title_image, (new_width, new_height))
+        except pygame.error:
+            # Fallback to text if image fails to load
+            self.title_font = pygame.font.SysFont(None, 80)  # Larger title
 
     def draw(self, surf: pygame.Surface) -> None:
         surf.blit(self.background_image, (0, 0))
-        # Title text with enhanced visual hierarchy and garden theme
-        title = self.title_font.render("Aetherial Levels", True, (245, 252, 235))  # Brighter almost-white text with slight green tint
-        title_rect = title.get_rect(center=(surf.get_width() // 2, surf.get_height() // 4 - 30))  # Adjusted position
-        
-        surf.blit(title, title_rect)
+        # Draw title image with enhanced visual hierarchy and garden theme
+        if hasattr(self, 'title_image'):
+            title_rect = self.title_image.get_rect(center=(surf.get_width() // 2, surf.get_height() // 4 - 30))  # Adjusted position
+            surf.blit(self.title_image, title_rect)
+        else:
+            # Fallback to text if image is not available
+            title = self.title_font.render("Aetherial Levels", True, (245, 252, 235))  # Brighter almost-white text with slight green tint
+            title_rect = title.get_rect(center=(surf.get_width() // 2, surf.get_height() // 4 - 30))  # Adjusted position
+            surf.blit(title, title_rect)
         
         # Buttons
         for btn in self.buttons:
@@ -219,14 +236,17 @@ class Menu:
 # HUD – tiny heads‑up‑display during gameplay (move counter & pause).
 # ------------------------------------------------------------
 class HUD:
-    def __init__(self, screen_rect: pygame.Rect, pause_cb: Callable[[], None]):
+    def __init__(self, screen_rect: pygame.Rect, pause_cb: Callable[[], None], guide_cb: Callable[[], None]):
         self.move_count = 0
         self.pause_cb = pause_cb
-        # Move counter rect (top-left with padding) - keeping the improvement
+        self.guide_cb = guide_cb
+        # Move counter rect (top-left with padding)
         self.counter_rect = pygame.Rect(20, 20, 150, 40)
-        # Pause button (small square in top‑right) - back to original style
+        # Pause button (small square in top-right)
         size = 40
         self.pause_rect = pygame.Rect(screen_rect.right - size - 10, 10, size, size)
+        # Guide button (next to pause)
+        self.guide_rect = pygame.Rect(self.pause_rect.left - size - 10, 10, size, size)
         self.font = pygame.font.SysFont(None, 36)
         self.counter_font = pygame.font.SysFont(None, 28)
 
@@ -248,10 +268,83 @@ class HUD:
         sym_rect = pause_sym.get_rect(center=self.pause_rect.center)
         surf.blit(pause_sym, sym_rect)
 
+        # Guide button (question mark)
+        pygame.draw.rect(surf, (80, 100, 80), self.guide_rect, border_radius=5)
+        pygame.draw.rect(surf, (30, 50, 30), self.guide_rect, 2, border_radius=5)
+        guide_sym = self.font.render("?", True, (255, 255, 255))
+        sym_rect = guide_sym.get_rect(center=self.guide_rect.center)
+        surf.blit(guide_sym, sym_rect)
+
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.pause_rect.collidepoint(event.pos):
                 self.pause_cb()
+            elif self.guide_rect.collidepoint(event.pos):
+                self.guide_cb()
+
+
+# ------------------------------------------------------------
+# Guide - A full-screen overlay to explain the game.
+# ------------------------------------------------------------
+class Guide:
+    def __init__(self, screen_rect: pygame.Rect, close_cb: Callable[[], None]):
+        self.rect = screen_rect
+        self.close_cb = close_cb
+        self.font_title = pygame.font.SysFont(None, 52)
+        self.font_body = pygame.font.SysFont(None, 36)
+
+        # Central panel
+        self.panel_rect = pygame.Rect(0, 0, screen_rect.width * 0.8, screen_rect.height * 0.8)
+        self.panel_rect.center = screen_rect.center
+
+        # Close button (relative to the panel)
+        close_rect = pygame.Rect(0, 0, 120, 50)
+        close_rect.centerx = self.panel_rect.centerx
+        close_rect.bottom = self.panel_rect.bottom - 20
+        self.close_button = Button(close_rect, "Got It!", self.close_cb)
+
+    def draw(self, surf: pygame.Surface, solved_board_img: pygame.Surface) -> None:
+        # Semi-transparent overlay (80% opacity)
+        overlay = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 204))
+        surf.blit(overlay, (0, 0))
+
+        # Central panel
+        pygame.draw.rect(surf, (10, 40, 25), self.panel_rect, border_radius=15)
+        pygame.draw.rect(surf, (70, 150, 100), self.panel_rect, 2, border_radius=15)
+
+        # --- Content (relative to the panel) ---
+        y_offset = self.panel_rect.top + 40
+        left_margin = self.panel_rect.left + 40
+
+        # 1. Objective
+        title_obj = self.font_title.render("Objective", True, (255, 255, 255))
+        surf.blit(title_obj, (left_margin, y_offset))
+        y_offset += 60
+        body_obj = self.font_body.render("Arrange the tiles to solve the puzzle.", True, (220, 220, 220))
+        surf.blit(body_obj, (left_margin, y_offset))
+        y_offset += 70
+
+        # 2. How to Play
+        title_mech = self.font_title.render("How to Play", True, (255, 255, 255))
+        surf.blit(title_mech, (left_margin, y_offset))
+        y_offset += 60
+        body_mech = self.font_body.render("Click a tile next to the empty space to slide it.", True, (220, 220, 220))
+        surf.blit(body_mech, (left_margin, y_offset))
+        y_offset += 90
+
+        # 3. Solved State Preview
+        if solved_board_img:
+            img_rect = solved_board_img.get_rect(centerx=self.panel_rect.centerx, top=y_offset)
+            surf.blit(solved_board_img, img_rect)
+
+        # Close button
+        self.close_button.draw(surf)
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        self.close_button.handle_event(event)
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.close_cb()
 
 
 # ------------------------------------------------------------
@@ -300,6 +393,21 @@ class LevelSelect:
         self.title_font = pygame.font.SysFont('Arial', 36, bold=True)
         self.small_font = pygame.font.SysFont('Arial', 20)  # Larger for better readability
         self.status_font = pygame.font.SysFont('Arial', 18, bold=True)  # For status text
+        
+        # Load title image
+        try:
+            self.title_image = pygame.image.load('assets/images/finalstitleui.png').convert_alpha()
+            # Scale the title image if needed to fit the screen appropriately
+            max_width = screen_rect.width // 3  # Limit width to a third of the screen
+            img_width, img_height = self.title_image.get_size()
+            if img_width > max_width:
+                scale_factor = max_width / img_width
+                new_width = int(img_width * scale_factor)
+                new_height = int(img_height * scale_factor)
+                self.title_image = pygame.transform.scale(self.title_image, (new_width, new_height))
+        except pygame.error:
+            # Fallback to text if image fails to load
+            pass  # Use text as fallback which is already handled in draw method
 
         # Button geometry – resized to better fit content
         btn_w, btn_h = 320, 85  # Smaller height to match content
@@ -422,18 +530,23 @@ class LevelSelect:
                         pygame.draw.rect(overlay, (8, 35, 18), (x, y, 8, 8))
             surf.blit(overlay, (0, 0))
 
-        # Title with cozy garden fantasy theme
-        title = self.title_font.render("AETHERIAL LEVELS", True, (180, 230, 150))  # Pastel green
-        title_rect = title.get_rect(center=(surf.get_width() // 2, 80))
-        
-        # Softer glow effect for garden fantasy feel
-        for dx in [-1, 0, 1]:
-            for dy in [-1, 0, 1]:
-                if dx != 0 or dy != 0:  # Skip the center
-                    outline = self.title_font.render("AETHERIAL LEVELS", True, (60, 100, 70))
-                    surf.blit(outline, (title_rect.x + dx, title_rect.y + dy))
-        
-        surf.blit(title, title_rect)
+        # Draw title image with enhanced visual hierarchy and garden theme
+        if hasattr(self, 'title_image'):
+            title_rect = self.title_image.get_rect(center=(surf.get_width() // 2, 80))  # Adjusted position
+            surf.blit(self.title_image, title_rect)
+        else:
+            # Title with cozy garden fantasy theme (fallback to text)
+            title = self.title_font.render("AETHERIAL LEVELS", True, (180, 230, 150))  # Pastel green
+            title_rect = title.get_rect(center=(surf.get_width() // 2, 80))
+            
+            # Softer glow effect for garden fantasy feel
+            for dx in [-1, 0, 1]:
+                for dy in [-1, 0, 1]:
+                    if dx != 0 or dy != 0:  # Skip the center
+                        outline = self.title_font.render("AETHERIAL LEVELS", True, (60, 100, 70))
+                        surf.blit(outline, (title_rect.x + dx, title_rect.y + dy))
+            
+            surf.blit(title, title_rect)
 
         # Level buttons + saved stats
         current_time = pygame.time.get_ticks()
@@ -474,10 +587,6 @@ class LevelSelect:
         # Styled back button
         pygame.draw.rect(surf, (120, 100, 75), self.back_rect)
         pygame.draw.rect(surf, (85, 65, 45), self.back_rect, 2)
-        
-        back_txt = self.small_font.render("BACK", True, (220, 240, 220))
-        surf.blit(back_txt, (self.back_rect.centerx - back_txt.get_width() // 2, 
-                            self.back_rect.centery - back_txt.get_height() // 2))
 
     # -----------------------------------------------------------------
     # Update method for animations

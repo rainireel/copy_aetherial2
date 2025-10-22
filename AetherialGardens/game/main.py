@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from puzzle import Board
-from ui import Menu, HUD, LevelSelect, Button
+from ui import Menu, HUD, LevelSelect, Button, Guide
 from audio import (
     init_mixer,
     load_sfx,
@@ -81,6 +81,7 @@ STATE_SETTINGS = "settings"      # ★‑Settings addition
 STATE_CUSTOM_PUZZLE = "custom_puzzle"
 STATE_CROPPING = "cropping"
 STATE_GALLERY = "gallery"  # <-- NEW
+STATE_GUIDE = "guide"
 STATE_WIN = "win"  # Win/restoration screen
 
 game_state = STATE_MENU
@@ -103,7 +104,14 @@ transition_start_time = 0
 # -----------------------------------------------------------------
 # UI objects
 # -----------------------------------------------------------------
-hud = HUD(pygame.Rect(0, 0, *WINDOW_SIZE), pause_cb=lambda: toggle_pause())
+def show_guide():
+    switch_state(STATE_GUIDE)
+
+def hide_guide():
+    switch_state(STATE_PLAYING)
+
+hud = HUD(pygame.Rect(0, 0, *WINDOW_SIZE), pause_cb=lambda: toggle_pause(), guide_cb=show_guide)
+guide = Guide(pygame.Rect(0, 0, *WINDOW_SIZE), close_cb=hide_guide)
 star_hud = StarHUD(pygame.Rect(0, 0, *WINDOW_SIZE))
 
 def quit_game():
@@ -414,6 +422,8 @@ while running:
                 cropping_tool.handle_event(event)
         elif game_state == STATE_GALLERY:  # <-- NEW
             gallery_screen.handle_event(event)
+        elif game_state == STATE_GUIDE:
+            guide.handle_event(event)
         elif game_state == STATE_WIN:
             if win_screen:
                 win_screen.handle_event(event)
@@ -453,6 +463,8 @@ while running:
     elif game_state == STATE_GALLERY:  # <-- NEW
         # Gallery screen doesn't have animations, so no update needed
         pass
+    elif game_state == STATE_GUIDE:
+        pass # No animations for the guide screen itself
     elif game_state == STATE_WIN:
         if win_screen:
             win_screen.update(dt)
@@ -492,6 +504,31 @@ while running:
             cropping_tool.draw(screen)
     elif game_state == STATE_GALLERY:  # <-- NEW
         gallery_screen.draw(screen)
+    elif game_state == STATE_GUIDE:
+        # Draw the game in the background
+        if board:
+            board.draw(screen, pygame.font.SysFont(None, 48))
+        hud.draw(screen)
+
+        # Create a solved board for the guide's visual aid
+        solved_board_for_guide = None
+        if selected_level:
+            rows = selected_level.rows if hasattr(selected_level, 'rows') else selected_level['rows']
+            # Create a board in its solved state (is_preview=True)
+            solved_board_instance = Board(rows=rows, cols=rows, tile_size=40, margin=2, is_preview=True)
+            
+            # If it's a custom puzzle with an image, apply it
+            if isinstance(selected_level, dict) and "custom_image" in selected_level:
+                solved_board_instance.apply_custom_image(selected_level["custom_image"])
+
+            # Render the solved board to a smaller surface
+            board_width = rows * 40 + (rows + 1) * 2
+            board_height = rows * 40 + (rows + 1) * 2
+            solved_board_for_guide = pygame.Surface((board_width, board_height))
+            solved_board_for_guide.fill(BG_COLOR)
+            solved_board_instance.draw_preview(solved_board_for_guide, pygame.font.SysFont(None, 24))
+
+        guide.draw(screen, solved_board_for_guide)
     elif game_state == STATE_WIN:
         if win_screen:
             win_screen.draw(screen)

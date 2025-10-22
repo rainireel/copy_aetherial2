@@ -110,7 +110,9 @@ class CustomPuzzleScreen:
             # Gallery button for "My Restored Memories" - should match requirements exactly
             pygame.draw.rect(surface, (90, 130, 100), self.gallery_btn)  # Slightly different color to distinguish
             pygame.draw.rect(surface, (50, 90, 70), self.gallery_btn, 2)
-            gallery_text = self.font.render("MY Restored Memories", True, (255, 255, 255))
+            # Use an even smaller font for the gallery text to ensure it fits properly
+            gallery_font = pygame.font.SysFont(None, 24)  # Smaller font size
+            gallery_text = gallery_font.render("MY RESTORED MEMORIES", True, (255, 255, 255))
             gallery_rect = gallery_text.get_rect(center=self.gallery_btn.center)
             surface.blit(gallery_text, gallery_rect)
             
