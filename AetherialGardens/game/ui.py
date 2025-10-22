@@ -99,17 +99,18 @@ class Button:
         elif self.text:
             # Draw text centered with better alignment and respect for internal padding
             txt_color = self.txt_color if self.enabled else (150, 150, 150)  # Dim text for disabled
-            txt_surf = self.font.render(self.text, True, txt_color)
+            
+            # Adjust font size for longer text to ensure it fits
+            font_size = 48
+            if len(self.text) > 10:
+                font_size = 40  # Smaller font for longer text
+            
+            adjusted_font = pygame.font.SysFont(None, font_size)
+            txt_surf = adjusted_font.render(self.text, True, txt_color)
 
             # Calculate text position to ensure it's centered within the padded area
             txt_rect = txt_surf.get_rect()
             txt_rect.center = self.rect.center  # Keep perfect horizontal and vertical centering
-
-            # Make sure text doesn't exceed button bounds with padding
-            if txt_rect.width > padding_rect.width - 20:  # 20px additional padding on width
-                # If text is too wide, scale it down or truncate
-                # For now, we'll ensure it fits by centering properly
-                pass
 
             surf.blit(txt_surf, txt_rect)
 
@@ -587,6 +588,10 @@ class LevelSelect:
         # Styled back button
         pygame.draw.rect(surf, (120, 100, 75), self.back_rect)
         pygame.draw.rect(surf, (85, 65, 45), self.back_rect, 2)
+        # Add the "Back" text
+        back_text = self.font.render("Back", True, (255, 255, 255))
+        back_rect = back_text.get_rect(center=self.back_rect.center)
+        surf.blit(back_text, back_rect)
 
     # -----------------------------------------------------------------
     # Update method for animations

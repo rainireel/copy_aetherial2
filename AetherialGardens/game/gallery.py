@@ -301,7 +301,7 @@ class GalleryScreen:
         # Draw back button - should go back to Loom Main Menu per requirements
         pygame.draw.rect(surface, (120, 100, 75), self.back_btn)
         pygame.draw.rect(surface, (85, 65, 45), self.back_btn, 2)
-        back_text = self.font.render("Back to Loom Menu", True, (255, 255, 255))
+        back_text = self.font.render("Back", True, (255, 255, 255))
         back_rect = back_text.get_rect(center=self.back_btn.center)
         surface.blit(back_text, back_rect)
         

@@ -390,7 +390,7 @@ quit_rect.y = start_y + 2 * (btn_h + spacing)
 # Make "Start" and "Quit" stand out more, and "Custom Puzzle" more subdued to indicate submenu
 menu.buttons = [
     Button(start_rect, "Start", lambda: switch_state(STATE_LEVEL_SELECT), bg_color=(100, 150, 120)),  # More prominent green
-    Button(custom_rect, "Custom Puzzle", lambda: switch_state(STATE_CUSTOM_PUZZLE), bg_color=(80, 120, 100)),  # More subdued green
+    Button(custom_rect, "Custom Image", lambda: switch_state(STATE_CUSTOM_PUZZLE), bg_color=(80, 120, 100)),  # More subdued green
     Button(quit_rect, "Quit", quit_game, bg_color=(130, 100, 85)),  # Different color for quit button
 ]
 
