@@ -31,6 +31,7 @@ from custom_puzzle import CustomPuzzleScreen
 from cropping_tool import CroppingTool
 from gallery import Gallery, GalleryScreen  # <-- NEW
 from win_screen import WinScreen  # Win/restoration screen
+from celebration import CelebrationOverlay  # Celebration overlay for solved puzzles
 
 # -----------------------------------------------------------------
 # Constants
@@ -92,6 +93,8 @@ cropping_tool = None
 gallery_screen = None  # <-- NEW
 just_saved_to_gallery = False  # <-- NEW: Track if we just saved to gallery
 win_screen = None  # Win screen instance
+celebration_overlay = None  # Celebration overlay instance
+puzzle_solved_celebrated = False  # Flag to prevent re-triggering celebration
 
 # -----------------------------------------------------------------
 # Screen transition variables
@@ -148,9 +151,11 @@ def restart_current_level():
             )
         hud.move_count = 0
         star_hud.set_rating(0)
+        global puzzle_solved_celebrated
+        puzzle_solved_celebrated = False  # Reset celebration flag for new game
 
 def start_game(level_info):
-    global game_state, board, selected_level, hud, star_hud
+    global game_state, board, selected_level, hud, star_hud, puzzle_solved_celebrated
     selected_level = level_info
     board = Board(
         rows=level_info.rows,
@@ -161,9 +166,10 @@ def start_game(level_info):
     hud.move_count = 0
     game_state = STATE_PLAYING
     star_hud.set_rating(0)
+    puzzle_solved_celebrated = False  # Reset celebration flag for new game
 
 def start_custom_game(level_info):
-    global game_state, board, selected_level, hud, star_hud
+    global game_state, board, selected_level, hud, star_hud, puzzle_solved_celebrated
     selected_level = level_info
     # Create the board without shuffling initially
     board = Board(
@@ -184,6 +190,7 @@ def start_custom_game(level_info):
     hud.move_count = 0
     game_state = STATE_PLAYING
     star_hud.set_rating(0)
+    puzzle_solved_celebrated = False  # Reset celebration flag for new game
 
 def init_custom_puzzle_screen():
     global custom_puzzle_screen
@@ -350,6 +357,9 @@ gallery = Gallery()
 # Initialize win screen after all functions are defined
 win_screen = None
 
+# Initialize celebration overlay after all functions are defined
+celebration_overlay = CelebrationOverlay()
+
 # Initialize the settings button as a separate UI element (it will be drawn separately)
 from ui import Button
 settings_btn_size = 60
@@ -471,6 +481,9 @@ while running:
     elif game_state == STATE_PLAYING or game_state == STATE_PAUSED:
         # Update HUD even when playing
         pass  # HUD doesn't currently have animations
+        # Update celebration overlay if active
+        if board and board.is_solved() and celebration_overlay and celebration_overlay.is_active():
+            celebration_overlay.update(dt)
 
     # Handle screen transitions
     if in_transition:
@@ -546,8 +559,24 @@ while running:
 
         board.draw(screen, pygame.font.SysFont(None, 48))
         hud.draw(screen)
-
+        
+        # Check if puzzle is solved and celebration hasn't been triggered yet
         if board.is_solved() and game_state != STATE_WIN:
+            rows_value = selected_level["rows"] if isinstance(selected_level, dict) else selected_level.rows
+            # Only trigger celebration if it hasn't been triggered yet for this solve
+            if not puzzle_solved_celebrated and not celebration_overlay.is_active():
+                celebration_overlay.trigger(hud.move_count, rows_value)
+                puzzle_solved_celebrated = True  # Mark that celebration has been triggered
+            # Update and draw celebration overlay
+            if puzzle_solved_celebrated:
+                celebration_overlay.update(dt)
+                celebration_overlay.draw(screen)
+        else:
+            # Draw star hud if not celebrating
+            star_hud.draw(screen)
+
+        # After celebration finishes, transition to win screen if custom puzzle
+        if board.is_solved() and puzzle_solved_celebrated and not celebration_overlay.is_active() and game_state != STATE_WIN:
             play("complete")
             rows_value = selected_level["rows"] if isinstance(selected_level, dict) else selected_level.rows
             rating = StarHUD.compute_rating(rows_value, hud.move_count)
@@ -567,8 +596,6 @@ while running:
                         weave_another_cb=lambda: switch_state(STATE_CUSTOM_PUZZLE)
                     )
                     switch_state(STATE_WIN)
-
-        star_hud.draw(screen)
 
         if game_state == STATE_PAUSED:
             pause_menu.draw(screen)
