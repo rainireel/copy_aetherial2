@@ -18,7 +18,8 @@ class WinScreen:
                  puzzle_size: int,
                  moves: int,
                  back_to_menu_cb: Callable[[], None],
-                 weave_another_cb: Callable[[], None]):
+                 weave_another_cb: Callable[[], None],
+                 play_completion_sound: bool = True):  # Add parameter to control sound
         self.rect = screen_rect
         self.cropped_image = cropped_image
         self.puzzle_size = puzzle_size
@@ -64,12 +65,13 @@ class WinScreen:
         # Calculate star rating
         self.rating = self._calculate_rating()
         
-        # Play the completion sound
-        try:
-            from .audio import play
-            play("complete")
-        except ImportError:
-            pass  # Audio module might not be available in all contexts
+        # Play the completion sound if requested
+        if play_completion_sound:
+            try:
+                from .audio import play
+                play("complete")
+            except ImportError:
+                pass  # Audio module might not be available in all contexts
     
     def _calculate_rating(self) -> int:
         """Calculate star rating based on puzzle size and moves."""

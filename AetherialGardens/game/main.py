@@ -575,13 +575,15 @@ while running:
             # Draw star hud if not celebrating
             star_hud.draw(screen)
 
-        # After celebration finishes, transition to win screen if custom puzzle
+        # After celebration finishes, handle completion for all puzzles
         if board.is_solved() and puzzle_solved_celebrated and not celebration_overlay.is_active() and game_state != STATE_WIN:
-            play("complete")
             rows_value = selected_level["rows"] if isinstance(selected_level, dict) else selected_level.rows
             rating = StarHUD.compute_rating(rows_value, hud.move_count)
             star_hud.set_rating(rating)
             # No longer tracking best scores - just continue
+
+            # Note: Completion sound is played when celebration starts (in celebration.py)
+            # This ensures perfect synchronization with visual effects
 
             is_custom = isinstance(selected_level, dict) and 'custom_image' in selected_level
             if is_custom:
@@ -593,9 +595,16 @@ while running:
                         rows_value,
                         hud.move_count,
                         back_to_menu_cb=back_to_menu,
-                        weave_another_cb=lambda: switch_state(STATE_CUSTOM_PUZZLE)
+                        weave_another_cb=lambda: switch_state(STATE_CUSTOM_PUZZLE),
+                        play_completion_sound=False  # Sound already played with celebration
                     )
                     switch_state(STATE_WIN)
+            else:
+                # For non-custom puzzles, just reset the celebration flag
+                # The puzzle remains visible with completion state
+                # In the original code, there was no special handling after sound for regular puzzles
+                # So we'll just ensure the celebration doesn't retrigger
+                pass
 
         if game_state == STATE_PAUSED:
             pause_menu.draw(screen)

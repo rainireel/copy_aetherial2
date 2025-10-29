@@ -4,13 +4,19 @@ import pygame
 from typing import Tuple, Optional
 import sys
 
-# Import audio system for celebration sound
+# Import audio system for celebration sound - handling both relative and absolute imports
 try:
+    # For when run as part of the package
     from .audio import play
 except ImportError:
-    def play(sound_name):
+    try:
+        # For when run directly or from main
+        from audio import play
+    except ImportError:
         # Fallback function if audio module is not available
-        pass
+        def play(sound_name):
+            print(f"Audio not available, would play: {sound_name}")
+            pass
 
 class CelebrationOverlay:
     """Celebration overlay that appears when puzzle is solved."""
@@ -43,12 +49,8 @@ class CelebrationOverlay:
         self.moves = moves
         self.puzzle_size = puzzle_size
         
-        # Play celebration sound
-        try:
-            play("complete")
-        except:
-            # If audio fails, continue without sound
-            pass
+        # Play celebration sound immediately when the celebration starts
+        play("complete")  # Using the imported play function
             
     def update(self, dt: int) -> None:
         """Update the celebration overlay state."""
