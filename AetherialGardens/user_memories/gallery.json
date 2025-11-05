@@ -1,3 +1,11 @@
 {
-  "memories": []
+  "memories": [
+    {
+      "filename": "memory_20251105_180127_f4d6e658.png",
+      "puzzle_size": 3,
+      "moves": 12,
+      "stars": 3,
+      "date": "2025-11-05T18:01:27.772253"
+    }
+  ]
 }

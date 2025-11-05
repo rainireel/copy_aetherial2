@@ -59,6 +59,7 @@ class Board:
         self.margin = margin
         self.tiles: List[List[Tile]] = []
         self.empty_pos = (rows - 1, cols - 1)
+        self.scaled_image = None  # Store the scaled image
         self._create_tiles()
         if image_surface:
             self.apply_image(image_surface)   # texture the board
@@ -102,7 +103,7 @@ class Board:
         # Compute the total drawable area (without margins)
         drawable_w = self.cols * self.tile_size
         drawable_h = self.rows * self.tile_size
-        scaled = pygame.transform.smoothscale(img, (drawable_w, drawable_h))
+        self.scaled_image = pygame.transform.smoothscale(img, (drawable_w, drawable_h))
 
         for r in range(self.rows):
             for c in range(self.cols):
@@ -115,7 +116,7 @@ class Board:
                     self.tile_size,
                     self.tile_size,
                 )
-                tile.image = scaled.subsurface(sub_rect).copy()
+                tile.image = self.scaled_image.subsurface(sub_rect).copy()
 
     def apply_custom_image(self, img: pygame.Surface) -> None:
         """
@@ -142,7 +143,7 @@ class Board:
         
         # Scale the image to fit the board
         try:
-            scaled = pygame.transform.smoothscale(img, (drawable_w, drawable_h))
+            self.scaled_image = pygame.transform.smoothscale(img, (drawable_w, drawable_h))
         except pygame.error as e:
             print(f"Failed to scale image: {e}")
             return
@@ -161,13 +162,13 @@ class Board:
                 
                 # Make sure sub_rect is within bounds
                 if (sub_rect.x < 0 or sub_rect.y < 0 or 
-                    sub_rect.right > scaled.get_width() or 
-                    sub_rect.bottom > scaled.get_height()):
+                    sub_rect.right > self.scaled_image.get_width() or 
+                    sub_rect.bottom > self.scaled_image.get_height()):
                     print(f"Sub-rectangle out of bounds for tile at ({r}, {c})")
                     continue
                 
                 try:
-                    tile.image = scaled.subsurface(sub_rect).copy()
+                    tile.image = self.scaled_image.subsurface(sub_rect).copy()
                 except pygame.error as e:
                     # Handle the case where subsurface fails
                     print(f"Error creating tile at ({r}, {c}): {e}")
@@ -278,6 +279,15 @@ class Board:
                 if tile.number != 0 and tile.image:
                     reconstructed.blit(tile.image, 
                                      (c * self.tile_size, r * self.tile_size))
+                elif tile.number == 0 and self.scaled_image:
+                    # For the empty tile, grab the corresponding piece from the stored scaled image
+                    empty_piece_rect = pygame.Rect(
+                        c * self.tile_size,
+                        r * self.tile_size,
+                        self.tile_size,
+                        self.tile_size
+                    )
+                    reconstructed.blit(self.scaled_image.subsurface(empty_piece_rect), (c * self.tile_size, r * self.tile_size))
         
         return reconstructed
 
