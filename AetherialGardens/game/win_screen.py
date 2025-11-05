@@ -153,9 +153,19 @@ class WinScreen:
             # Fallback to the original background if image loading fails
             surface.fill((10, 30, 20))  # Dark green background
         
-        # Draw success message
-        message = self.title_font.render("Memory Restored!", True, (255, 255, 200))  # Light yellow
+        # Draw success message with outline for better visibility
+        message = self.title_font.render("Memory Restored!", True, (255, 255, 150))  # Brighter yellow
+        message_outline = self.title_font.render("Memory Restored!", True, (30, 60, 45))  # Dark green outline
+        
         msg_rect = message.get_rect(center=(self.rect.centerx, 40))
+        
+        # Draw outline first (slightly offset)
+        surface.blit(message_outline, (msg_rect.x - 2, msg_rect.y - 2))
+        surface.blit(message_outline, (msg_rect.x + 2, msg_rect.y - 2))
+        surface.blit(message_outline, (msg_rect.x - 2, msg_rect.y + 2))
+        surface.blit(message_outline, (msg_rect.x + 2, msg_rect.y + 2))
+        
+        # Draw main text on top
         surface.blit(message, msg_rect)
         
         # Draw the restored image
