@@ -153,17 +153,18 @@ class WinScreen:
             # Fallback to the original background if image loading fails
             surface.fill((10, 30, 20))  # Dark green background
         
-        # Draw success message with outline for better visibility
-        message = self.title_font.render("Memory Restored!", True, (255, 255, 150))  # Brighter yellow
-        message_outline = self.title_font.render("Memory Restored!", True, (30, 60, 45))  # Dark green outline
-        
+        # Draw success message with better visibility
+        # Use a color that provides good contrast against a variety of backgrounds
+        message = self.title_font.render("Memory Restored!", True, (255, 215, 0))  # Gold color for better visibility
         msg_rect = message.get_rect(center=(self.rect.centerx, 40))
         
-        # Draw outline first (slightly offset)
-        surface.blit(message_outline, (msg_rect.x - 2, msg_rect.y - 2))
-        surface.blit(message_outline, (msg_rect.x + 2, msg_rect.y - 2))
-        surface.blit(message_outline, (msg_rect.x - 2, msg_rect.y + 2))
-        surface.blit(message_outline, (msg_rect.x + 2, msg_rect.y + 2))
+        # Draw a subtle semi-transparent background to ensure text visibility
+        padding = 10
+        bg_rect = msg_rect.inflate(padding * 2, padding // 2)  # Create a slightly larger rect for background
+        bg_surface = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
+        bg_surface.fill((0, 0, 0, 100))  # Semi-transparent black background
+        
+        surface.blit(bg_surface, bg_rect)
         
         # Draw main text on top
         surface.blit(message, msg_rect)
