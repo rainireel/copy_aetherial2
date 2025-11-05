@@ -332,6 +332,8 @@ def switch_state(new_state):
     start_transition()
     # For this implementation, we'll handle the actual state change after the transition
     target_state = new_state
+    if new_state == STATE_CUSTOM_PUZZLE:
+        custom_puzzle_screen.reset()
 
 def apply_state_change():
     """Actually apply the state change after transition."""

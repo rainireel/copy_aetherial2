@@ -32,6 +32,12 @@ class CustomPuzzleScreen:
         # UI Elements
         self._create_ui_elements()
         
+    def reset(self):
+        """Reset the screen to its initial state."""
+        self.cropping_tool = None
+        self.image_loader = ImageLoader()
+        self.status = "Select an image to create your puzzle"
+        
     def _create_ui_elements(self):
         """Create all UI buttons and elements."""
         cx, cy = self.rect.centerx, self.rect.centery
