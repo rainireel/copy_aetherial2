@@ -50,9 +50,9 @@ class WinScreen:
         self.display_y = 100  # Leave space at top for title
         
         # Buttons
-        btn_w, btn_h = 200, 50
+        btn_w, btn_h = 220, 50  # Increased button width
         btn_spacing = 20
-        start_y = self.display_y + self.display_h + 30
+        start_y = self.display_y + self.display_h + 40  # Adjusted vertical position
         
         # Center the buttons
         total_btn_width = 3 * btn_w + 2 * btn_spacing
@@ -127,6 +127,21 @@ class WinScreen:
         """Update animations (currently no animations in this screen)."""
         pass
     
+    def _render_text_fit(self, text: str, rect: pygame.Rect, font_size: int) -> pygame.Surface:
+        """Render text to fit within a given rectangle by adjusting font size."""
+        font = pygame.font.SysFont(None, font_size)
+        text_width, text_height = font.size(text)
+        
+        # Reduce font size until it fits
+        while text_width > rect.width - 10 or text_height > rect.height - 10:
+            font_size -= 1
+            if font_size <= 10:  # Don't let font get too small
+                break
+            font = pygame.font.SysFont(None, font_size)
+            text_width, text_height = font.size(text)
+            
+        return font.render(text, True, (255, 255, 255))
+
     def draw(self, surface: pygame.Surface) -> None:
         """Draw the win screen."""
         # Draw the new background image
@@ -176,7 +191,7 @@ class WinScreen:
         # Draw "Back to Loom Menu" button
         pygame.draw.rect(surface, (120, 100, 75), self.menu_btn)
         pygame.draw.rect(surface, (85, 65, 45), self.menu_btn, 2)
-        menu_text = self.font.render("Back to Loom Menu", True, (255, 255, 255))
+        menu_text = self._render_text_fit("Back to Loom Menu", self.menu_btn, 36)
         menu_text_rect = menu_text.get_rect(center=self.menu_btn.center)
         surface.blit(menu_text, menu_text_rect)
         
