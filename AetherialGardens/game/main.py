@@ -95,6 +95,7 @@ just_saved_to_gallery = False  # <-- NEW: Track if we just saved to gallery
 win_screen = None  # Win screen instance
 celebration_overlay = None  # Celebration overlay instance
 puzzle_solved_celebrated = False  # Flag to prevent re-triggering celebration
+win_screen_initiated = False # Flag to prevent re-triggering win screen
 
 # -----------------------------------------------------------------
 # Screen transition variables
@@ -125,7 +126,7 @@ def back_to_menu():
     switch_state(STATE_MENU)
 
 def restart_current_level():
-    global board, hud, star_hud
+    global board, hud, star_hud, puzzle_solved_celebrated, win_screen_initiated
     if selected_level:
         # Handle both dict and object formats for selected_level
         if isinstance(selected_level, dict):
@@ -151,11 +152,11 @@ def restart_current_level():
             )
         hud.move_count = 0
         star_hud.set_rating(0)
-        global puzzle_solved_celebrated
         puzzle_solved_celebrated = False  # Reset celebration flag for new game
+        win_screen_initiated = False # Reset win screen flag
 
 def start_game(level_info):
-    global game_state, board, selected_level, hud, star_hud, puzzle_solved_celebrated
+    global game_state, board, selected_level, hud, star_hud, puzzle_solved_celebrated, win_screen_initiated
     selected_level = level_info
     board = Board(
         rows=level_info.rows,
@@ -167,9 +168,10 @@ def start_game(level_info):
     game_state = STATE_PLAYING
     star_hud.set_rating(0)
     puzzle_solved_celebrated = False  # Reset celebration flag for new game
+    win_screen_initiated = False # Reset win screen flag
 
 def start_custom_game(level_info):
-    global game_state, board, selected_level, hud, star_hud, puzzle_solved_celebrated
+    global game_state, board, selected_level, hud, star_hud, puzzle_solved_celebrated, win_screen_initiated
     selected_level = level_info
     # Create the board without shuffling initially
     board = Board(
@@ -191,6 +193,7 @@ def start_custom_game(level_info):
     game_state = STATE_PLAYING
     star_hud.set_rating(0)
     puzzle_solved_celebrated = False  # Reset celebration flag for new game
+    win_screen_initiated = False # Reset win screen flag
 
 def init_custom_puzzle_screen():
     global custom_puzzle_screen
@@ -576,7 +579,8 @@ while running:
             star_hud.draw(screen)
 
         # After celebration finishes, handle completion for all puzzles
-        if board.is_solved() and puzzle_solved_celebrated and not celebration_overlay.is_active() and game_state != STATE_WIN:
+        if board.is_solved() and puzzle_solved_celebrated and not celebration_overlay.is_active() and game_state != STATE_WIN and not win_screen_initiated:
+            win_screen_initiated = True
             rows_value = selected_level["rows"] if isinstance(selected_level, dict) else selected_level.rows
             rating = StarHUD.compute_rating(rows_value, hud.move_count)
             star_hud.set_rating(rating)
