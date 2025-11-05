@@ -267,6 +267,12 @@ class Board:
     
     def get_cropped_image(self) -> pygame.Surface:
         """Reconstruct the original cropped image from the tiles."""
+        # If we have a scaled image (the original used for the puzzle), return it directly
+        # This ensures we preserve the original image quality without reconstruction artifacts
+        if self.scaled_image:
+            return self.scaled_image
+        
+        # Fallback to reconstruction if scaled_image is not available
         # Create a surface to reconstruct the image
         drawable_w = self.cols * self.tile_size
         drawable_h = self.rows * self.tile_size
