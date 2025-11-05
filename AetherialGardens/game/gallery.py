@@ -175,7 +175,7 @@ class GalleryScreen:
         
         # UI elements
         self.back_btn = pygame.Rect(20, screen_rect.height - 70, 100, 50)
-        self.fullscreen_back_btn = pygame.Rect(20, 20, 100, 50)
+        self.fullscreen_back_btn = pygame.Rect(20, 20, 140, 50)  # Wider button to accommodate "Back to Gallery" text
         self.delete_btn = pygame.Rect(screen_rect.width - 120, screen_rect.height - 70, 100, 50)
         
         # Scroll position
@@ -185,6 +185,22 @@ class GalleryScreen:
         # Load thumbnails
         self.thumbnails = []
         self._load_thumbnails()
+    
+    def _render_text_fit(self, text: str, rect: pygame.Rect, font_size: int) -> pygame.Surface:
+        """Render text to fit within a given rectangle by adjusting font size."""
+        font = pygame.font.SysFont(None, font_size)
+        text_width, text_height = font.size(text)
+        
+        # Reduce font size until it fits with some padding
+        padding = 10
+        while text_width > rect.width - padding or text_height > rect.height - padding:
+            font_size -= 1
+            if font_size <= 12:  # Don't let font get too small
+                break
+            font = pygame.font.SysFont(None, font_size)
+            text_width, text_height = font.size(text)
+            
+        return font.render(text, True, (255, 255, 255))
     
     def _load_thumbnails(self) -> None:
         """Load all memory thumbnails with gallery display functionality."""
@@ -329,7 +345,9 @@ class GalleryScreen:
             # Draw back button
             pygame.draw.rect(surface, (120, 100, 75), self.fullscreen_back_btn)
             pygame.draw.rect(surface, (85, 65, 45), self.fullscreen_back_btn, 2)
-            back_text = self.font.render("Back", True, (255, 255, 255))
+            
+            # Render text to fit within button bounds
+            back_text = self._render_text_fit("Back", self.fullscreen_back_btn, 36)
             back_rect = back_text.get_rect(center=self.fullscreen_back_btn.center)
             surface.blit(back_text, back_rect)
             return
@@ -356,7 +374,9 @@ class GalleryScreen:
             # Draw back button
             pygame.draw.rect(surface, (120, 100, 75), self.fullscreen_back_btn)
             pygame.draw.rect(surface, (85, 65, 45), self.fullscreen_back_btn, 2)
-            back_text = self.font.render("Back", True, (255, 255, 255))
+            
+            # Render text to fit within button bounds
+            back_text = self._render_text_fit("Back", self.fullscreen_back_btn, 36)
             back_rect = back_text.get_rect(center=self.fullscreen_back_btn.center)
             surface.blit(back_text, back_rect)
             return
@@ -378,7 +398,9 @@ class GalleryScreen:
         # Draw back button
         pygame.draw.rect(surface, (120, 100, 75), self.fullscreen_back_btn)
         pygame.draw.rect(surface, (85, 65, 45), self.fullscreen_back_btn, 2)
-        back_text = self.font.render("Back to Gallery", True, (255, 255, 255))
+        
+        # Render text to fit within button bounds
+        back_text = self._render_text_fit("Back to Gallery", self.fullscreen_back_btn, 36)
         back_rect = back_text.get_rect(center=self.fullscreen_back_btn.center)
         surface.blit(back_text, back_rect)
         
